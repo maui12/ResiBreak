@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom';
-import Sidebar, { type OpcionSidebar } from '../components/Sidebar/Sidebar';
-import '../styles/admin-theme.css';
+import Sidebar, { type OpcionSidebar } from '../../../components/Sidebar/Sidebar';
+import '../../../styles/admin-theme.css';
 import './AdminDashboard.css';
 
 const opciones: OpcionSidebar[] = [

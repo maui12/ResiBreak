@@ -4,7 +4,7 @@ import {
   NOMBRES_MESES,
   claveFecha,
   generarMes,
-} from './../../utils/turnos';
+} from '../../../utils/turnos';
 import './Calendario.css';
 
 // TODO: los feriados vendrán del backend (por ejemplo GET /feriados?anio=2025)

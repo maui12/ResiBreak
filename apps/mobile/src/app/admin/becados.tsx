@@ -9,10 +9,10 @@ import {
   View,
 } from 'react-native';
 
-import ScreenLayout from '../components/ScreenLayout';
+import ScreenLayout from '../../components/ScreenLayout';
 import { Colors, Radios, Spacing } from '@/constants/theme';
-import { obtenerBecados } from '../../../web/src/pages/Becados/becados.service';
-import type { Becado } from '../../../web/src/pages/Becados/becados.types';
+import { obtenerBecados } from '../../../../web/src/pages/Admin/Becados/becados.service';
+import type { Becado } from '../../../../web/src/pages/Admin/Becados/becados.types';
 
 const MAX_TURNOS_MES = 6;
 

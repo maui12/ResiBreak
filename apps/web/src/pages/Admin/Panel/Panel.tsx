@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DIAS_SEMANA, generarMes } from './../../utils/turnos';
+import { DIAS_SEMANA, generarMes } from '../../../utils/turnos';
 import './Panel.css';
 
 /* ------------------------------------------------------------------

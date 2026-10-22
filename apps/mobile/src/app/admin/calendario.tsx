@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import ScreenLayout from '../components/ScreenLayout';
+import ScreenLayout from '../../components/ScreenLayout';
 import { Colors, Radios, Spacing } from '@/constants/theme';
 
 /* ------------------------------------------------------------------

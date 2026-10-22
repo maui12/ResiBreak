@@ -6,6 +6,7 @@
   font-family: var(--font-family, "Open Sans", sans-serif);
 }
 
+
 .main-content {
   flex: 1;
   min-width: 0;
