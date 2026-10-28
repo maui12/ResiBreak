@@ -8,16 +8,20 @@ import {
 } from 'react-native';
 
 import { Colors, Radios, Spacing } from '../../constants/theme';
+import type { MenuSidebar } from '../../constants/menus';
 import Sidebar from '../Sidebar/Sidebar';
 
 type AppHeaderProps = {
   titulo: string;
   subtitulo?: string;
+  /** Menú del sidebar. Si no se indica, se usa el del administrador. */
+  menu?: MenuSidebar;
 };
 
 export default function AppHeader({
   titulo,
   subtitulo,
+  menu,
 }: AppHeaderProps) {
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
@@ -71,6 +75,7 @@ export default function AppHeader({
       <Sidebar
         visible={sidebarVisible}
         onClose={() => setSidebarVisible(false)}
+        menu={menu}
       />
     </>
   );

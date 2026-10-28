@@ -7,16 +7,20 @@ import {
 
 import AppHeader from '@/components/AppHeader/AppHeader';
 import { Colors } from '@/constants/theme';
+import type { MenuSidebar } from '@/constants/menus';
 
 type ScreenLayoutProps = {
   titulo: string;
   subtitulo?: string;
+  /** Menú del sidebar. Si no se indica, se usa el del administrador. */
+  menu?: MenuSidebar;
   children: ReactNode;
 };
 
 export default function ScreenLayout({
   titulo,
   subtitulo,
+  menu,
   children,
 }: ScreenLayoutProps) {
   return (
@@ -24,6 +28,7 @@ export default function ScreenLayout({
       <AppHeader
         titulo={titulo}
         subtitulo={subtitulo}
+        menu={menu}
       />
 
       <ScrollView
