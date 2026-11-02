@@ -1,20 +1,148 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable,ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between,In,LessThan,MoreThanOrEqual,Not,Repository } from 'typeorm';
+import {Usuario} from '../auth/usuario.entity.js';
+import {Becado} from '../becados/becado.entity.js';
+import {esFechaValida, hoyChile, sumarDias} from '../common/fecha-chile.js';
 import { Hospital } from '../hospitales/hospital.entity.js';
 import { Pedido } from '../pedidos/pedido.entity.js';
+import {TipoComida, TIPOS_COMIDA } from './../common/comidas.js';
 import { Turno } from '../turnos/turno.entity.js';
 import type { InformeQueryDto } from './dto/informe-query.dto.js';
 
+const DIAS_TURNOS_ADELANTE = 14;
+const MAX_DIAS_ANTICIPACION = 30;
+const EXIGIR_TURNO = true; //el becado solo puede comer en los días que tenga turno asignado
 const MAX_DIAS = 366;
 
 @Injectable()
 export class InformesService {
+  private readonly logger = new Logger(InformesService.name);
   constructor(
     @InjectRepository(Hospital) private readonly hospitales: Repository<Hospital>,
     @InjectRepository(Turno) private readonly turnos: Repository<Turno>,
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
+    @InjectRepository(Becado) private readonly becados: Repository<Becado>,
+    @InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
   ) {}
+
+  private async becadoDe(usuarioId: number): Promise<Becado> {
+    const usuario = await this.usuarios.findOne({ where: { becadoId: usuarioId, activo: true } });
+    if (!usuario?.becadoId) throw new ForbiddenException('Tu cuenta no está vinculada a un residente activo');
+
+    const becado = await this.becados.findOne({
+      where: { id: usuario.becadoId, activo: true },
+      relations: { hospital: true },
+    });
+    if (!becado) throw new ForbiddenException('Tu ficha de residente está inactiva');
+    return becado;
+  }
+
+  async resumen(usuarioId: number) {
+    const becado = await this.becadoDe(usuarioId);
+    const hoy = hoyChile();
+
+    const [turnoHoy, proximosTurnos, comidasHoy] = await Promise.all([
+      this.turnos.findOneBy({ becadoId: becado.id, fecha: hoy }),
+      this.turnos.find({
+        where: { becadoId: becado.id, fecha: Between(sumarDias(hoy, 1), sumarDias(hoy, DIAS_TURNOS_ADELANTE)) },
+        order: { fecha: 'ASC' },
+      }),
+      this.pedidos.find({ where: { becadoId: becado.id, fecha: hoy, estado: Not('cancelado') } }),
+    ]);
+
+    return {
+      hoy,
+      becado: { nombre: becado.nombre, especialidad: becado.especialidad, hospital: becado.hospital.nombre },
+      turnoHoy: turnoHoy ? { fecha: turnoHoy.fecha, tipo: turnoHoy.tipo } : null,
+      comidasHoy: this.ordenar(comidasHoy).map((p) => this.aRespuesta(p)),
+      proximosTurnos: proximosTurnos.map((t) => ({ fecha: t.fecha, tipo: t.tipo })),
+    };
+  }
+
+  async listar(usuarioId: number, vista: 'proximos' | 'historial' = 'proximos') {
+    const becado = await this.becadoDe(usuarioId);
+    const hoy = hoyChile();
+
+    const filas = await this.pedidos.find({
+      where: {
+        becadoId: becado.id,
+        fecha: vista === 'historial' ? LessThan(hoy) : MoreThanOrEqual(hoy),
+      },
+      order: { fecha: vista === 'historial' ? 'DESC' : 'ASC' },
+      take: 100,
+    });
+
+    return { hoy, vista, items: this.ordenar(filas).map((p) => this.aRespuesta(p)) };
+  }
+
+  async crear(usuarioId: number, dto: CrearPedidoDto) {
+    const becado = await this.becadoDe(usuarioId);
+    const hoy = hoyChile();
+
+    if (!esFechaValida(dto.fecha)) throw new BadRequestException('Fecha inválida');
+    if (dto.fecha < hoy) throw new BadRequestException('No puedes pedir comida para una fecha pasada');
+    if (dto.fecha > sumarDias(hoy, MAX_DIAS_ANTICIPACION)) {
+      throw new BadRequestException(`Solo puedes pedir con hasta ${MAX_DIAS_ANTICIPACION} días de anticipación`);
+    }
+
+    if (EXIGIR_TURNO) {
+      const turnos = await this.turnos.count({ where: { becadoId: becado.id, fecha: dto.fecha } });
+      if (turnos === 0) throw new BadRequestException('No tienes un turno asignado ese día');
+    }
+
+    const existente = await this.pedidos.findOneBy({
+      becadoId: becado.id,
+      fecha: dto.fecha,
+      tipoComida: dto.tipoComida,
+    });
+
+    if (existente) {
+      if (existente.estado !== 'Cancelado'.toLowerCase()) throw new ConflictException('Ya tienes ese pedido');
+      // Si lo había cancelado, se reactiva en vez de crear otra fila (la combinación es única)
+      existente.estado = 'Pendiente';
+      existente.entregadoEn = null;
+      existente.entregadoPorId = null;
+      return this.aRespuesta(await this.pedidos.save(existente));
+    }
+
+    const nuevo = await this.pedidos.save(
+      this.pedidos.create({ becadoId: becado.id, fecha: dto.fecha, tipoComida: dto.tipoComida, estado: 'pendiente' }),
+    );
+    this.logger.log(`Becado ${becado.id} pidió ${dto.tipoComida} para ${dto.fecha}`);
+    return this.aRespuesta(nuevo);
+  }
+
+  /** Solo se cancelan pedidos propios, pendientes y de hoy en adelante (UPDATE atómico). */
+  async cancelar(usuarioId: number, id: number) {
+    const becado = await this.becadoDe(usuarioId);
+
+    const resultado = await this.pedidos.update(
+      { id, becadoId: becado.id, estado: 'Pendiente', fecha: MoreThanOrEqual(hoyChile()) },
+      { estado: 'Cancelado' },
+    );
+
+    if (!resultado.affected) {
+      // 404 también si el pedido es de otro becado: no se revela que existe
+      const pedido = await this.pedidos.findOneBy({ id, becadoId: becado.id });
+      if (!pedido) throw new NotFoundException('Pedido no encontrado');
+      if (pedido.estado !== 'Pendiente') throw new ConflictException(`El pedido ya está ${pedido.estado}`);
+      throw new BadRequestException('No puedes cancelar pedidos de fechas pasadas');
+    }
+    return { id, estado: 'Cancelado' as const };
+  }
+
+  private ordenar(filas: Pedido[]) {
+    return [...filas].sort(
+      (a, b) =>
+        a.fecha.localeCompare(b.fecha) || TIPOS_COMIDA.indexOf(a.tipoComida) - TIPOS_COMIDA.indexOf(b.tipoComida),
+    );
+  }
+
+  private aRespuesta(p: Pedido) {
+    return { id: p.id, fecha: p.fecha, tipoComida: p.tipoComida, estado: p.estado };
+  }
+
 
   /** Turnos, comidas y monto por hospital en un rango de fechas (semanal, mensual o anual). */
   async porHospital(q: InformeQueryDto) {

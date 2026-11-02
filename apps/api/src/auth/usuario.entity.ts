@@ -4,7 +4,9 @@ import { Rol } from '../common/roles.js';
 @Entity('usuarios')
 export class Usuario {
   @PrimaryGeneratedColumn()
-  id: number;
+  
+  @Column({ type: 'int', unsigned: true, nullable: true })
+  becadoId: number | null;
 
   @Column({ type: 'varchar', length: 160, unique: true })
   email: string;

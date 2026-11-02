@@ -1,6 +1,7 @@
 const REQUERIDAS = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'JWT_SECRET'];
 
 /** Si falta algo, la API no arranca: es mejor fallar al inicio que en producción. */
+
 export function validarEnv(env: Record<string, unknown>): Record<string, unknown> {
   const faltan = REQUERIDAS.filter((k) => !env[k]);
   if (faltan.length > 0) {

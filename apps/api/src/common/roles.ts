@@ -3,6 +3,9 @@ import { SetMetadata } from '@nestjs/common';
 export enum Rol {
   ADMIN = 'admin',
   CONSULTA = 'consulta',
+  PROVEEDOR = 'proveedor',
+  RESIDENTE = 'residente',
+  
 }
 
 export const IS_PUBLIC = 'isPublic';

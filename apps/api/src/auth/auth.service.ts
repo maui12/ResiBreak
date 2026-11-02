@@ -10,7 +10,9 @@ import { Usuario } from './usuario.entity.js';
 // Se compara contra este hash cuando el correo no existe, para que el tiempo de respuesta
 // no revele qué correos están registrados.
 const HASH_FALSO = bcrypt.hashSync('no-existe', 12);
-
+const MAX_INTENTOS = 5;
+const MINUTOS_BLOQUEO = 15;
+const MENSAJE_FALLO = 'Credenciales inválidas o cuenta bloqueada temporalmente';
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
@@ -30,9 +32,13 @@ export class AuthService implements OnModuleInit {
       this.logger.warn('No hay usuarios y faltan ADMIN_EMAIL / ADMIN_PASSWORD: nadie podrá iniciar sesión.');
       return;
     }
+    if (password.length < 12) {
+      this.logger.error('ADMIN_PASSWORD debe tener al menos 12 caracteres. No se creó el administrador.');
+      return;
+    }
     await this.usuarios.save(
       this.usuarios.create({
-        email: email.toLowerCase(),
+        email: email.trim().toLowerCase(),
         passwordHash: await bcrypt.hash(password, 12),
         rol: Rol.ADMIN,
       }),
@@ -47,10 +53,35 @@ export class AuthService implements OnModuleInit {
       .where('u.email = :email AND u.activo = true', { email: email.toLowerCase() })
       .getOne();
 
+    
+    const bloqueado = !!usuario?.bloqueadoHasta && usuario.bloqueadoHasta > new Date();
     const coincide = await bcrypt.compare(password, usuario?.passwordHash ?? HASH_FALSO);
-    if (!usuario || !coincide) throw new UnauthorizedException('Credenciales inválidas');
+
+    if (!usuario || bloqueado || !coincide) {
+      if (usuario && !bloqueado) await this.registrarFallo(usuario);
+      throw new UnauthorizedException(MENSAJE_FALLO);
+    }
+
+    await this.usuarios.update(usuario.id, {
+      intentosFallidos: 0,
+      bloqueadoHasta: null,
+      ultimoLoginEn: new Date(),
+    });
 
     const accessToken = await this.jwt.signAsync({ sub: usuario.id, rol: usuario.rol });
     return { accessToken, rol: usuario.rol };
+  }
+
+  private async registrarFallo(usuario: Usuario) {
+    const intentos = usuario.intentosFallidos + 1;
+    if (intentos >= MAX_INTENTOS) {
+      await this.usuarios.update(usuario.id, {
+        intentosFallidos: 0,
+        bloqueadoHasta: new Date(Date.now() + MINUTOS_BLOQUEO * 60_000),
+      });
+      this.logger.warn(`Cuenta bloqueada ${MINUTOS_BLOQUEO} min por intentos fallidos (usuario id=${usuario.id})`);
+    } else {
+      await this.usuarios.update(usuario.id, { intentosFallidos: intentos });
+    }
   }
 }

@@ -1,4 +1,9 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Body, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import type {JwtPayload} from '../auth/jwt-payload.js';
+import {Rol, Roles} from '../common/roles.js';
+import {UsuarioActual} from '../common/usuario-actual.js';
+import { CrearPedidoDto , ListarPedidosQueryDto} from './dto/informe-query.dto.js';
 import { InformeQueryDto } from './dto/informe-query.dto.js';
 import { InformesService } from './informes.service.js';
 
