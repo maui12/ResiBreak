@@ -87,7 +87,7 @@ export async function peticion<T>(ruta: string, opciones: OpcionesPeticion = {})
       body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
     });
   } catch {
-    throw new ApiError(0, 'No se pudo conectar con el servidor. Revisa tu conexión.');
+      throw new ApiError(0, `No se pudo conectar con ${API_URL}. Revisa que la API esté corriendo y que sea alcanzable desde este dispositivo.`);
   }
 
   if (!respuesta.ok) {

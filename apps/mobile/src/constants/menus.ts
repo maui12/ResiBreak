@@ -31,19 +31,19 @@ export const MENU_RESIDENTE: MenuSidebar = {
       titulo: 'Resumen',
       descripcion: 'Tus pedidos de los próximos 7 días',
       icono: '⌂',
-      ruta: '/residente/panelResidente',
+      ruta: '/becado/panelBecado',
     },
     {
       titulo: 'Agendar pedidos',
       descripcion: 'Hospital, turno y fecha',
       icono: '▦',
-      ruta: '/residente/agendarPedido',
+      ruta: '/becado/agendarPedido',
     },
     {
       titulo: 'Cambiar un pedido',
       descripcion: 'Modifica un pedido agendado',
       icono: '⇄',
-      ruta: '/residente/cambiarPedido',
+      ruta: '/becado/cambiarPedido',
     },
   ],
 };

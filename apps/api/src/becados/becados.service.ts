@@ -1,21 +1,56 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, type OnApplicationBootstrap } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { MesQueryDto } from '../common/dto/mes-query.dto.js';
 import { rangoMes } from '../common/fechas.js';
+import { Hospital } from '../hospitales/hospital.entity.js';
 import { Pedido } from '../pedidos/pedido.entity.js';
 import { Turno } from '../turnos/turno.entity.js';
 import { Becado } from './becado.entity.js';
 import type { ActualizarBecadoDto } from './dto/actualizar-becado.dto.js';
 import type { CrearBecadoDto } from './dto/crear-becado.dto.js';
 
+/** RUT del residente de prueba (válido). La app móvil lo busca por este RUT en el login de demostración. */
+export const RUT_RESIDENTE_DEMO = '11111111-1';
+
 @Injectable()
-export class BecadosService {
+export class BecadosService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(BecadosService.name);
+
   constructor(
+    private readonly config: ConfigService,
+    @InjectRepository(Hospital) private readonly hospitales: Repository<Hospital>,
     @InjectRepository(Becado) private readonly repo: Repository<Becado>,
     @InjectRepository(Turno) private readonly turnos: Repository<Turno>,
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
   ) {}
+
+  /**
+   * Crea un residente de prueba si SEED_DEMO=true. Se hace en onApplicationBootstrap (y no en
+   * onModuleInit) para que los hospitales iniciales ya existan. Nunca corre en producción.
+   */
+  async onApplicationBootstrap() {
+    if (this.config.get<string>('SEED_DEMO') !== 'true') return;
+    if (process.env.NODE_ENV === 'production') {
+      this.logger.warn('SEED_DEMO se ignora porque NODE_ENV=production.');
+      return;
+    }
+    if (await this.repo.existsBy({ rut: RUT_RESIDENTE_DEMO })) return;
+
+    const hospital =
+      (await this.hospitales.find({ order: { id: 'ASC' }, take: 1 }))[0] ??
+      (await this.hospitales.save(this.hospitales.create({ nombre: 'Ovalle' })));
+    await this.repo.save(
+      this.repo.create({
+        nombre: 'Residente de Prueba',
+        rut: RUT_RESIDENTE_DEMO,
+        especialidad: 'Medicina Interna',
+        hospitalId: hospital.id,
+      }),
+    );
+    this.logger.log(`Residente de prueba creado (RUT ${RUT_RESIDENTE_DEMO})`);
+  }
 
   /** Becados activos con su resumen del mes (la forma que usa la pantalla "Becados"). */
   async listarConResumen(q: MesQueryDto) {
@@ -47,6 +82,7 @@ export class BecadosService {
     return becados.map((b) => ({
       id: b.id,
       nombre: b.nombre,
+      rut: b.rut,
       especialidad: b.especialidad,
       hospital: b.hospital.nombre,
       turnos: Number(t.get(b.id)?.turnos ?? 0),

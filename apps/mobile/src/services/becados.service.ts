@@ -28,7 +28,7 @@ import { claveFecha, mesesQueCubre, sumarDias } from '../utils/fechas';
 
 /* ---------------------------- Tipos del front ---------------------------- */
 
-export type TipoComida = 'Desayunos' | 'Almuerzos' | 'Onces' | 'Cenas';
+export type TipoComida = 'Desayuno' | 'Almuerzo' | 'Once' | 'Cena';
 export type EstadoPedido = 'Programado' | 'Repartido';
 export type TipoTurno = 'normal' | '24h';
 
@@ -132,8 +132,8 @@ export async function obtenerReglas(): Promise<ReglasAgendamiento> {
 
 /** Comidas que incluye cada tipo de turno (mismas combinaciones que usa la web). */
 const COMIDAS_POR_TURNO: Record<TipoTurno, TipoComida[]> = {
-  normal: ['Almuerzos', 'Onces'],
-  '24h': ['Desayunos', 'Almuerzos', 'Onces', 'Cenas'],
+  normal: ['Almuerzo', 'Once'],
+  '24h': ['Desayuno', 'Almuerzo', 'Once', 'Cena'],
 };
 
 /**

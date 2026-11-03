@@ -228,7 +228,7 @@ export default function AgendarPedidoScreen() {
                       <OpcionSeleccion
                         key={h.id}
                         titulo={`Hospital de ${h.nombre}`}
-                        descripcion={h.id === residente.hospital.id ? 'Tu hospital' : undefined}
+                        //descripcion={h.id === residente.hospital.id ? 'Tu hospital' : undefined}
                         seleccionada={h.id === hospitalId}
                         onPress={() => elegirHospital(h.id)}
                       />
