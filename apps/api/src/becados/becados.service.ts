@@ -8,8 +8,9 @@ import { Turno } from '../turnos/turno.entity.js';
 import { Becado } from './becado.entity.js';
 import type { ActualizarBecadoDto } from './dto/actualizar-becado.dto.js';
 import type { CrearBecadoDto } from './dto/crear-becado.dto.js';
+import { Usuario } from '../auth/usuario.entity.js';
 
-@Injectable()
+@InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
 export class BecadosService {
   constructor(
     @InjectRepository(Becado) private readonly repo: Repository<Becado>,
@@ -17,6 +18,7 @@ export class BecadosService {
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
   ) {}
 
+  
   /** Becados activos con su resumen del mes (la forma que usa la pantalla "Becados"). */
   async listarConResumen(q: MesQueryDto) {
     const { desde, hasta } = rangoMes(q.anio, q.mes);
@@ -71,12 +73,19 @@ export class BecadosService {
     const becado = await this.obtener(id);
     // hospital viene cargado (eager); se quita para que TypeORM use hospitalId al guardar
     const { hospital: _hospital, ...resto } = becado;
-    return this.repo.save({ ...resto, ...dto });
+    const guardado = await this.repo.save({ ...resto, ...dto });
+    if (dto.hospitalId !== undefined && dto.hospitalId !== becado.hospitalId) {
+      await this.usuarios.update({ becadoId: id }, { hospitalId: dto.hospitalId });
+    }
+    return guardado;
   }
 
-  /** No se borra: se desactiva, así el historial de turnos y pedidos se conserva. */
+  /** No se borra: se desactiva (y su cuenta también), así el historial se conserva. */
   async desactivar(id: number) {
     await this.obtener(id);
     await this.repo.update({ id }, { activo: false });
+    await this.usuarios.update({ becadoId: id }, { activo: false });
   }
 }
+
+

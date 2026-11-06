@@ -19,13 +19,13 @@ export class CalendarioController {
     return this.calendario.listarFeriados(q.anio);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @Post('feriados')
   crearFeriado(@Body() dto: CrearFeriadoDto) {
     return this.calendario.crearFeriado(dto);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @HttpCode(204)
   @Delete('feriados/:id')
   eliminarFeriado(@Param('id', ParseIntPipe) id: number) {

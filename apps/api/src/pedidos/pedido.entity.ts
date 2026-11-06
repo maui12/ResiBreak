@@ -26,7 +26,7 @@ export class Pedido {
   @Column({ type: 'varchar', length: 20 })
   tipoComida: TipoComida;
 
-  @Column({ type: 'varchar', length: 20, default: 'Pendiente' })
+  @Column({ type: 'varchar', length: 20, default: 'pendiente' })
   estado: EstadoPedido;
 
   @Column({ type: 'timestamptz', nullable: true })

@@ -13,5 +13,5 @@ export const IS_PUBLIC = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC, true);
 
 export const ROLES_KEY = 'roles';
-/** Restringe una ruta a ciertos roles. Sin @Roles, basta con estar autenticado. */
+/** Restringe una ruta a ciertos roles. Sin @Roles, solo entra el ADMIN. */
 export const Roles = (...roles: Rol[]) => SetMetadata(ROLES_KEY, roles);

@@ -45,10 +45,7 @@ export class PedidosService {
     if (q.estado) qb.andWhere('p.estado = :estado', { estado: q.estado });
     const filas = await qb.orderBy('p.fecha', 'ASC').addOrderBy('b.nombre', 'ASC').getMany();
 
-    const grupos = new Map<
-      string,
-      { becadoId: number; becado: string; hospital: string; fecha: string; dia: number; comidas: TipoComida[]; estado: EstadoPedido }
-    >();
+    const PRIORIDAD: Record<EstadoPedido, number> = { pendiente: 3, entregado: 2, cancelado: 1 };
     for (const f of filas) {
       const clave = `${f.becadoId}|${f.fecha}`;
       const grupo = grupos.get(clave) ?? {
@@ -58,10 +55,11 @@ export class PedidosService {
         fecha: f.fecha,
         dia: Number(f.fecha.slice(8, 10)),
         comidas: [],
-        estado: 'Repartido' as EstadoPedido,
+        estado: f.estado,
       };
       grupo.comidas.push(f.tipoComida);
-      if (f.estado === 'Programado') grupo.estado = 'Programado'; // basta una pendiente
+      // el día se muestra con el estado "más pendiente": basta una pendiente para que el día esté pendiente
+      if (PRIORIDAD[f.estado] > PRIORIDAD[grupo.estado]) grupo.estado = f.estado;
       grupos.set(clave, grupo);
     }
     return [...grupos.values()];

@@ -28,7 +28,7 @@ export class ProveedorService {
   async resumen() {
     const hoy = hoyChile();
     const hasta = sumarDias(hoy, DIAS_ADELANTE);
-
+    
     const filas = await this.pedidos
       .createQueryBuilder('p')
       .select("to_char(p.fecha, 'YYYY-MM-DD')", 'fecha')
@@ -59,7 +59,7 @@ export class ProveedorService {
       dia.total += cantidad;
     }
 
-    const pendientesHoy = await this.pedidos.count({ where: { fecha: hoy, estado: 'Pendiente' } });
+    const pendientesHoy = await this.pedidos.count({ where: { fecha: hoy, estado: 'pendiente' } });
 
     return {
       hoy,
@@ -131,19 +131,19 @@ export class ProveedorService {
    */
   async marcarEntregado(id: number, usuarioId: number) {
     const resultado = await this.pedidos.update(
-      { id, estado: 'Pendiente', fecha: hoyChile() },
-      { estado: 'Entregado', entregadoEn: new Date(), entregadoPorId: usuarioId },
+    { id, estado: 'pendiente', fecha: hoyChile() },
+    { estado: 'entregado', entregadoEn: new Date(), entregadoPorId: usuarioId },
     );
 
     if (!resultado.affected) {
       const pedido = await this.pedidos.findOneBy({ id });
       if (!pedido) throw new NotFoundException('Pedido no encontrado');
-      if (pedido.estado !== 'Pendiente') throw new ConflictException(`El pedido ya está ${pedido.estado}`);
+      if (pedido.estado !== 'pendiente') throw new ConflictException(`El pedido ya está ${pedido.estado}`);
       throw new BadRequestException('Solo se pueden entregar pedidos de hoy');
     }
 
     this.logger.log(`Pedido ${id} entregado por usuario ${usuarioId}`);
-    return { id, estado: 'Entregado' as const };
+    return { id, estado: 'entregado' as const };
   }
 
   // Se devuelve solo lo que el proveedor necesita: ningún id de usuario ni dato interno.

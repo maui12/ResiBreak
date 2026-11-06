@@ -15,9 +15,7 @@ export class Becado {
   @Column({ type: 'boolean', default: true })
   activo: boolean;
 
-  @Index()
-  @Column({ type: 'int' })
-  hospitalId: number;
+  
 
   @ManyToOne(() => Hospital, { eager: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'hospitalId' })

@@ -1,45 +1,52 @@
-import { BadRequestException, Injectable,ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between,In,LessThan,MoreThanOrEqual,Not,Repository } from 'typeorm';
-import {Usuario} from '../auth/usuario.entity.js';
-import {Becado} from '../becados/becado.entity.js';
-import {esFechaValida, hoyChile, sumarDias} from '../common/fecha-chile.js';
+import { Between, LessThan, MoreThanOrEqual, Not, Repository } from 'typeorm';
+import { Becado } from '../becados/becado.entity.js';
+import { CAMPO_COSTO, TIPOS_COMIDA } from '../common/comidas.js';
+import { esFechaValida, hoyChile, sumarDias } from '../common/fecha-chile.js';
+import { ConfiguracionService } from '../configuracion/configuracion.service.js';
 import { Hospital } from '../hospitales/hospital.entity.js';
 import { Pedido } from '../pedidos/pedido.entity.js';
-import {TipoComida, TIPOS_COMIDA } from './../common/comidas.js';
 import { Turno } from '../turnos/turno.entity.js';
-import type { InformeQueryDto } from './dto/informe-query.dto.js';
+import type { CrearPedidoResidenteDto, InformeQueryDto } from './dto/informe-query.dto.js';
 
 const DIAS_TURNOS_ADELANTE = 14;
 const MAX_DIAS_ANTICIPACION = 30;
-const EXIGIR_TURNO = true; //el becado solo puede comer en los días que tenga turno asignado
+const EXIGIR_TURNO = true; // el becado solo puede pedir comida los días que tenga turno asignado
 const MAX_DIAS = 366;
 
 @Injectable()
 export class InformesService {
   private readonly logger = new Logger(InformesService.name);
+
   constructor(
     @InjectRepository(Hospital) private readonly hospitales: Repository<Hospital>,
     @InjectRepository(Turno) private readonly turnos: Repository<Turno>,
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
     @InjectRepository(Becado) private readonly becados: Repository<Becado>,
-    @InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
+    private readonly configuracion: ConfiguracionService,
   ) {}
 
-  private async becadoDe(usuarioId: number): Promise<Becado> {
-    const usuario = await this.usuarios.findOne({ where: { becadoId: usuarioId, activo: true } });
-    if (!usuario?.becadoId) throw new ForbiddenException('Tu cuenta no está vinculada a un residente activo');
-
+  /** El becadoId viene del JWT. Igual se confirma en BD que la ficha siga activa. */
+  private async becadoDe(becadoId: number | null | undefined): Promise<Becado> {
+    if (!becadoId) throw new ForbiddenException('Tu cuenta no está vinculada a un becado');
     const becado = await this.becados.findOne({
-      where: { id: usuario.becadoId, activo: true },
+      where: { id: becadoId, activo: true },
       relations: { hospital: true },
     });
-    if (!becado) throw new ForbiddenException('Tu ficha de residente está inactiva');
+    if (!becado) throw new ForbiddenException('Tu ficha de becado está inactiva');
     return becado;
   }
 
-  async resumen(usuarioId: number) {
-    const becado = await this.becadoDe(usuarioId);
+  async resumen(becadoId: number | null) {
+    const becado = await this.becadoDe(becadoId);
     const hoy = hoyChile();
 
     const [turnoHoy, proximosTurnos, comidasHoy] = await Promise.all([
@@ -60,8 +67,8 @@ export class InformesService {
     };
   }
 
-  async listar(usuarioId: number, vista: 'proximos' | 'historial' = 'proximos') {
-    const becado = await this.becadoDe(usuarioId);
+  async listar(becadoId: number | null, vista: 'proximos' | 'historial' = 'proximos') {
+    const becado = await this.becadoDe(becadoId);
     const hoy = hoyChile();
 
     const filas = await this.pedidos.find({
@@ -76,8 +83,8 @@ export class InformesService {
     return { hoy, vista, items: this.ordenar(filas).map((p) => this.aRespuesta(p)) };
   }
 
-  async crear(usuarioId: number, dto: CrearPedidoDto) {
-    const becado = await this.becadoDe(usuarioId);
+  async crear(becadoId: number | null, dto: CrearPedidoResidenteDto) {
+    const becado = await this.becadoDe(becadoId);
     const hoy = hoyChile();
 
     if (!esFechaValida(dto.fecha)) throw new BadRequestException('Fecha inválida');
@@ -87,9 +94,13 @@ export class InformesService {
     }
 
     if (EXIGIR_TURNO) {
-      const turnos = await this.turnos.count({ where: { becadoId: becado.id, fecha: dto.fecha } });
-      if (turnos === 0) throw new BadRequestException('No tienes un turno asignado ese día');
+      const hayTurno = await this.turnos.existsBy({ becadoId: becado.id, fecha: dto.fecha });
+      if (!hayTurno) throw new BadRequestException('No tienes un turno asignado ese día');
     }
+
+    // Precio vigente hoy (queda congelado en el pedido)
+    const config = await this.configuracion.obtener();
+    const valorUnitario = config[CAMPO_COSTO[dto.tipoComida]];
 
     const existente = await this.pedidos.findOneBy({
       becadoId: becado.id,
@@ -98,38 +109,45 @@ export class InformesService {
     });
 
     if (existente) {
-      if (existente.estado !== 'Cancelado'.toLowerCase()) throw new ConflictException('Ya tienes ese pedido');
+      if (existente.estado !== 'cancelado') throw new ConflictException('Ya tienes ese pedido');
       // Si lo había cancelado, se reactiva en vez de crear otra fila (la combinación es única)
-      existente.estado = 'Pendiente';
+      existente.estado = 'pendiente';
       existente.entregadoEn = null;
       existente.entregadoPorId = null;
+      existente.valorUnitario = valorUnitario;
       return this.aRespuesta(await this.pedidos.save(existente));
     }
 
     const nuevo = await this.pedidos.save(
-      this.pedidos.create({ becadoId: becado.id, fecha: dto.fecha, tipoComida: dto.tipoComida, estado: 'pendiente' }),
+      this.pedidos.create({
+        becadoId: becado.id,
+        fecha: dto.fecha,
+        tipoComida: dto.tipoComida,
+        estado: 'pendiente',
+        valorUnitario,
+      }),
     );
     this.logger.log(`Becado ${becado.id} pidió ${dto.tipoComida} para ${dto.fecha}`);
     return this.aRespuesta(nuevo);
   }
 
   /** Solo se cancelan pedidos propios, pendientes y de hoy en adelante (UPDATE atómico). */
-  async cancelar(usuarioId: number, id: number) {
-    const becado = await this.becadoDe(usuarioId);
+  async cancelar(becadoId: number | null, id: number) {
+    const becado = await this.becadoDe(becadoId);
 
     const resultado = await this.pedidos.update(
-      { id, becadoId: becado.id, estado: 'Pendiente', fecha: MoreThanOrEqual(hoyChile()) },
-      { estado: 'Cancelado' },
+      { id, becadoId: becado.id, estado: 'pendiente', fecha: MoreThanOrEqual(hoyChile()) },
+      { estado: 'cancelado' },
     );
 
     if (!resultado.affected) {
       // 404 también si el pedido es de otro becado: no se revela que existe
       const pedido = await this.pedidos.findOneBy({ id, becadoId: becado.id });
       if (!pedido) throw new NotFoundException('Pedido no encontrado');
-      if (pedido.estado !== 'Pendiente') throw new ConflictException(`El pedido ya está ${pedido.estado}`);
+      if (pedido.estado !== 'pendiente') throw new ConflictException(`El pedido ya está ${pedido.estado}`);
       throw new BadRequestException('No puedes cancelar pedidos de fechas pasadas');
     }
-    return { id, estado: 'Cancelado' as const };
+    return { id, estado: 'cancelado' as const };
   }
 
   private ordenar(filas: Pedido[]) {
@@ -143,8 +161,7 @@ export class InformesService {
     return { id: p.id, fecha: p.fecha, tipoComida: p.tipoComida, estado: p.estado };
   }
 
-
-  /** Turnos, comidas y monto por hospital en un rango de fechas (semanal, mensual o anual). */
+  /** Turnos, comidas y monto por hospital en un rango de fechas (los pedidos cancelados no cuentan). */
   async porHospital(q: InformeQueryDto) {
     const dias = (Date.parse(q.hasta) - Date.parse(q.desde)) / 86_400_000;
     if (dias < 0) throw new BadRequestException('"desde" no puede ser posterior a "hasta"');
@@ -168,6 +185,7 @@ export class InformesService {
         .addSelect('COUNT(*)', 'comidas')
         .addSelect('COALESCE(SUM(p.valorUnitario), 0)', 'monto')
         .where('p.fecha >= :desde AND p.fecha <= :hasta', params)
+        .andWhere('p.estado <> :cancelado', { cancelado: 'cancelado' })
         .groupBy('b.hospitalId')
         .getRawMany<{ hospitalId: number; comidas: string; monto: string }>(),
     ]);

@@ -12,7 +12,7 @@ export class HospitalesController {
     return this.hospitales.listar();
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @Post()
   crear(@Body() dto: CrearHospitalDto) {
     return this.hospitales.crear(dto);

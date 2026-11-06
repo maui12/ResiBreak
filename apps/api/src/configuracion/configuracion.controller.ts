@@ -12,7 +12,7 @@ export class ConfiguracionController {
     return this.configuracion.obtener();
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @Put()
   actualizar(@Body() dto: ActualizarConfiguracionDto) {
     return this.configuracion.actualizar(dto);

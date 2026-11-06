@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
 import { FECHA_ISO } from '../../common/fecha-chile.js';
-import { ESTADOS_PEDIDO, TIPOS_COMIDA, type EstadoPedido, type TipoComida } from '../../pedidos/pedido.tipos.js';
+import { ESTADOS_PEDIDO, TIPOS_COMIDA, type EstadoPedido, type TipoComida } from '../../common/comidas.js';
 
 export class PedidosQueryDto {
   @IsOptional()
@@ -9,7 +9,7 @@ export class PedidosQueryDto {
   fecha?: string;
 
   @IsOptional()
-  @IsIn(TIPOS_COMIDA)
+  @IsIn([...TIPOS_COMIDA])
   tipoComida?: TipoComida;
 }
 
@@ -23,11 +23,11 @@ export class HistorialQueryDto {
   hasta?: string;
 
   @IsOptional()
-  @IsIn(TIPOS_COMIDA)
+  @IsIn([...TIPOS_COMIDA])
   tipoComida?: TipoComida;
 
   @IsOptional()
-  @IsIn(ESTADOS_PEDIDO)
+  @IsIn([...ESTADOS_PEDIDO])
   estado?: EstadoPedido;
 
   @IsOptional()

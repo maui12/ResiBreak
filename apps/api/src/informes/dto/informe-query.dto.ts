@@ -1,16 +1,25 @@
-import {IsIn, IsOptional, Matches} from 'class-validator';
-import { FECHA_ISO} from '../../common/fecha-chile.js';
-import {TIPOS_COMIDA, type TipoComida} from '../../common/comidas.js';
+import { IsIn, IsOptional } from 'class-validator';
+import { TIPOS_COMIDA, type TipoComida } from '../../common/comidas.js';
+import { FechaISO } from '../../common/validators.js';
 
+/** GET /api/informes/hospitales?desde=2026-06-01&hasta=2026-06-30 */
 export class InformeQueryDto {
-  @Matches(FECHA_ISO, {message: 'fecha debe tener formato AAAA-MM-DD'})
-  fecha:string;
+  @FechaISO()
+  desde: string;
 
-  @IsIn(TIPOS_COMIDA)
-  tipoComida:TipoComida;
+  @FechaISO()
+  hasta: string;
 }
 
-export class listarPedidosQueryDto {
+export class CrearPedidoResidenteDto {
+  @FechaISO()
+  fecha: string;
+
+  @IsIn([...TIPOS_COMIDA])
+  tipoComida: TipoComida;
+}
+
+export class ListarPedidosResidenteQueryDto {
   @IsOptional()
   @IsIn(['proximos', 'historial'])
   vista?: 'proximos' | 'historial';

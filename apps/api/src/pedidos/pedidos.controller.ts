@@ -18,20 +18,20 @@ export class PedidosController {
     return this.pedidos.contabilidad(q);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @Post()
   crear(@Body() dto: CrearPedidoDto) {
     return this.pedidos.crear(dto);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @HttpCode(204)
   @Patch('estado')
   cambiarEstado(@Body() dto: CambiarEstadoDto) {
     return this.pedidos.cambiarEstado(dto);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @HttpCode(204)
   @Delete(':id')
   eliminar(@Param('id', ParseIntPipe) id: number) {

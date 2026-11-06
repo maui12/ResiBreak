@@ -12,13 +12,13 @@ export class TurnosController {
     return this.turnos.listar(q);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @Post()
   crear(@Body() dto: CrearTurnoDto) {
     return this.turnos.crear(dto);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @HttpCode(204)
   @Delete(':id')
   eliminar(@Param('id', ParseIntPipe) id: number) {
