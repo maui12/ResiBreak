@@ -190,7 +190,7 @@ export default function AgendarPedidoScreen() {
     setGuardando(true);
     setErrorGuardar(null);
     try {
-      await guardarPedido({ residenteId: residente.id, fecha, turno });
+      await guardarPedido({ residenteId: residente.id, fecha, turno, hospitalId: hospitalId ?? undefined });
       setFechaGuardada(fecha);
       setFecha(null);
       recargarDias(); // el día guardado pasa a estar ocupado

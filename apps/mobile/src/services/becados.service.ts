@@ -14,7 +14,8 @@
  *   GET  /turnos?anio&mes&becadoId         (turnos que el residente ya tiene)
  *   GET  /pedidos?anio&mes                 (pedidos agendados)
  *   POST /turnos     { becadoId, fecha }
- *   POST /pedidos    { becadoId, fecha, comidas }
+ *   POST /pedidos    { becadoId, fecha, comidas, hospitalId? }
+ *   PUT  /turnos/reprogramar { becadoId, fechaActual, fechaNueva?, comidas?, hospitalId? }   (cambiar día y/o hospital de un pedido)
  *   DELETE /turnos/:id                     (deshacer si el pedido falla)
  *
  * Pendiente en el backend para que el flujo funcione con un usuario residente
@@ -47,7 +48,8 @@ export interface Residente {
 export interface PedidoResidente {
   fecha: string; // AAAA-MM-DD
   dia: number;
-  hospital: string;
+  hospital: string; // hospital al que se entrega el pedido
+  hospitalId: number;
   comidas: TipoComida[];
   estado: EstadoPedido;
 }
@@ -82,6 +84,7 @@ interface BecadoApi {
 interface PedidoApi {
   becadoId: number;
   hospital: string;
+  hospitalId: number;
   fecha: string;
   dia: number;
   comidas: TipoComida[];
@@ -217,6 +220,7 @@ export async function obtenerPedidosProximosDias(
       fecha: pedido.fecha,
       dia: pedido.dia,
       hospital: pedido.hospital,
+      hospitalId: pedido.hospitalId,
       comidas: pedido.comidas,
       estado: pedido.estado,
     }))
@@ -229,8 +233,8 @@ export interface DatosNuevoPedido {
   residenteId: number;
   fecha: string; // AAAA-MM-DD
   turno: TurnoDisponible;
-  // El hospital elegido en pantalla no se envía: el backend toma el hospital del residente
-  // y rechaza campos desconocidos (forbidNonWhitelisted). TODO(backend): aceptar hospitalId.
+  /** Hospital al que se entrega el pedido. Si no se envía, el servidor usa el del residente. */
+  hospitalId?: number;
 }
 
 /**
@@ -251,10 +255,43 @@ export async function guardarPedido(datos: DatosNuevoPedido): Promise<void> {
         becadoId: datos.residenteId,
         fecha: datos.fecha,
         comidas: datos.turno.comidas,
+        ...(datos.hospitalId !== undefined ? { hospitalId: datos.hospitalId } : {}),
       },
     });
   } catch (error) {
     await peticion(`/turnos/${turno.id}`, { metodo: 'DELETE' }).catch(() => undefined);
     throw error;
   }
+}
+
+export interface DatosCambioPedido {
+  residenteId: number;
+  /** Día en que está agendado hoy el pedido. */
+  fechaActual: string; // AAAA-MM-DD
+  /**
+   * Si se indica, el pedido se mueve a ese día. De `turno` salen las comidas del día nuevo
+   * (normal o guardia de 24 h).
+   */
+  nuevaFecha?: { fecha: string; turno: TurnoDisponible };
+  /** Si se indica, el pedido se entrega en ese hospital. */
+  hospitalId?: number;
+}
+
+/**
+ * Cambia un pedido ya agendado: el día, el hospital de entrega o ambos (hay que indicar al menos uno).
+ * El servidor lo hace en una sola transacción y valida la anticipación mínima, que el pedido no esté
+ * ya repartido y, si cambia el día, que el día nuevo esté libre.
+ */
+export async function reprogramarPedido(datos: DatosCambioPedido): Promise<void> {
+  await peticion('/turnos/reprogramar', {
+    metodo: 'PUT',
+    cuerpo: {
+      becadoId: datos.residenteId,
+      fechaActual: datos.fechaActual,
+      ...(datos.nuevaFecha
+        ? { fechaNueva: datos.nuevaFecha.fecha, comidas: datos.nuevaFecha.turno.comidas }
+        : {}),
+      ...(datos.hospitalId !== undefined ? { hospitalId: datos.hospitalId } : {}),
+    },
+  });
 }

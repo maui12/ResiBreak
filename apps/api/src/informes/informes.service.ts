@@ -36,11 +36,11 @@ export class InformesService {
       this.pedidos
         .createQueryBuilder('p')
         .innerJoin('p.becado', 'b')
-        .select('b.hospitalId', 'hospitalId')
+        .select('COALESCE(p.hospitalId, b.hospitalId)', 'hospitalId') // hospital de entrega del pedido
         .addSelect('COUNT(*)', 'comidas')
         .addSelect('COALESCE(SUM(p.valorUnitario), 0)', 'monto')
         .where('p.fecha >= :desde AND p.fecha <= :hasta', params)
-        .groupBy('b.hospitalId')
+        .groupBy('COALESCE(p.hospitalId, b.hospitalId)')
         .getRawMany<{ hospitalId: number; comidas: string; monto: string }>(),
     ]);
 
