@@ -6,6 +6,7 @@ import { CAMPO_COSTO, TIPOS_COMIDA, type EstadoPedido, type TipoComida } from '.
 import type { MesQueryDto } from './../common/dto/mes-query.dto.js';
 import { rangoMes } from './../common/fechas.js';
 import { ConfiguracionService } from './../configuracion/configuracion.service.js';
+import { Hospital } from './../hospitales/hospital.entity.js';
 import type { CambiarEstadoDto, CrearPedidoDto, ListarPedidosQueryDto } from './dto/pedidos.dto.js';
 import { Pedido } from './pedido.entity.js';
 
@@ -21,11 +22,15 @@ export class PedidosService {
     if (!(await this.becados.existsBy({ id: dto.becadoId, activo: true }))) {
       throw new NotFoundException('Becado no encontrado o inactivo');
     }
+    if (dto.hospitalId !== undefined && !(await this.repo.manager.existsBy(Hospital, { id: dto.hospitalId }))) {
+      throw new NotFoundException('Hospital no encontrado');
+    }
     const config = await this.configuracion.obtener();
     const filas = [...new Set(dto.comidas)].map((tipo) =>
       this.repo.create({
         becadoId: dto.becadoId,
         fecha: dto.fecha,
+        hospitalId: dto.hospitalId ?? null,
         tipoComida: tipo,
         valorUnitario: config[CAMPO_COSTO[tipo]],
       }),
@@ -40,21 +45,25 @@ export class PedidosService {
       .createQueryBuilder('p')
       .innerJoinAndSelect('p.becado', 'b')
       .innerJoinAndSelect('b.hospital', 'h')
+      .leftJoinAndSelect('p.hospital', 'ph') // hospital de entrega del pedido (si es null, vale el del becado)
       .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta });
-    if (q.hospitalId) qb.andWhere('b.hospitalId = :hospitalId', { hospitalId: q.hospitalId });
+    if (q.hospitalId) {
+      qb.andWhere('COALESCE(p.hospitalId, b.hospitalId) = :hospitalId', { hospitalId: q.hospitalId });
+    }
     if (q.estado) qb.andWhere('p.estado = :estado', { estado: q.estado });
     const filas = await qb.orderBy('p.fecha', 'ASC').addOrderBy('b.nombre', 'ASC').getMany();
 
     const grupos = new Map<
       string,
-      { becadoId: number; becado: string; hospital: string; fecha: string; dia: number; comidas: TipoComida[]; estado: EstadoPedido }
+      { becadoId: number; becado: string; hospital: string; hospitalId: number; fecha: string; dia: number; comidas: TipoComida[]; estado: EstadoPedido }
     >();
     for (const f of filas) {
       const clave = `${f.becadoId}|${f.fecha}`;
       const grupo = grupos.get(clave) ?? {
         becadoId: f.becadoId,
         becado: f.becado.nombre,
-        hospital: f.becado.hospital.nombre,
+        hospital: (f.hospital ?? f.becado.hospital).nombre,
+        hospitalId: f.hospitalId ?? f.becado.hospitalId,
         fecha: f.fecha,
         dia: Number(f.fecha.slice(8, 10)),
         comidas: [],

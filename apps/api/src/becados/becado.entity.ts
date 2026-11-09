@@ -9,6 +9,9 @@ export class Becado {
   @Column({ type: 'varchar', length: 120 })
   nombre: string;
 
+  @Column({ type: 'varchar', length: 12, unique: true, nullable: true })
+  rut: string | null;
+
   @Column({ type: 'varchar', length: 100 })
   especialidad: string;
 

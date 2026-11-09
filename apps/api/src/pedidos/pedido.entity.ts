@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
 import { Becado } from '../becados/becado.entity.js';
+import { Hospital } from '../hospitales/hospital.entity.js';
 import type { EstadoPedido, TipoComida } from './../common/comidas.js';
 
 /** Una fila = una comida de un becado en un día. */
@@ -15,6 +16,17 @@ export class Pedido {
   @ManyToOne(() => Becado, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'becadoId' })
   becado: Becado;
+
+  /**
+   * Hospital al que se entrega este pedido. null = el hospital del becado (así se comportan los
+   * pedidos anteriores a este campo y los que carga un administrador sin indicarlo).
+   */
+  @Column({ type: 'int', nullable: true })
+  hospitalId: number | null;
+
+  @ManyToOne(() => Hospital, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'hospitalId' })
+  hospital: Hospital | null;
 
   @Index()
   @Column({ type: 'date' })

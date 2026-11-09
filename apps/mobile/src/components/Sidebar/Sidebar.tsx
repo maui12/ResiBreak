@@ -11,46 +11,16 @@ import {
 } from 'react-native';
 import { router, usePathname, type Href } from 'expo-router';
 import { Colors, Radios, Spacing } from '@/constants/theme';
+import { MENU_ADMIN, type MenuSidebar } from '@/constants/menus';
 
 type SidebarProps = {
   visible: boolean;
   onClose: () => void;
+  /** Menú a mostrar. Si no se indica, se usa el del administrador. */
+  menu?: MenuSidebar;
 };
 
-const opciones = [
-  {
-    titulo: 'Panel',
-    descripcion: 'Resumen general',
-    icono: '⌂',
-    ruta: '/',
-  },
-  {
-    titulo: 'Becados',
-    descripcion: 'Personas y turnos',
-    icono: '♙',
-    ruta: '/becados',
-  },
-  {
-    titulo: 'Pedidos',
-    descripcion: 'Comidas y repartos',
-    icono: '▤',
-    ruta: '/pedidos',
-  },
-  {
-    titulo: 'Calendario',
-    descripcion: 'Planificación de turnos',
-    icono: '▦',
-    ruta: '/calendario',
-  },
-  {
-    titulo: 'Configuración',
-    descripcion: 'Reglas y costos',
-    icono: '⚙',
-    ruta: '/configuracion',
-  },
-] as const;
-
-export default function Sidebar({ visible, onClose }: SidebarProps) {
+export default function Sidebar({ visible, onClose, menu = MENU_ADMIN }: SidebarProps) {
   const pathname = usePathname();
   const translateX = useRef(new Animated.Value(-320)).current;
 
@@ -109,8 +79,8 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               </View>
 
               <View style={styles.cabeceraTexto}>
-                <Text style={styles.marca}>Gestión de Becados</Text>
-                <Text style={styles.submarca}>Panel institucional</Text>
+                <Text style={styles.marca}>{menu.marca}</Text>
+                <Text style={styles.submarca}>{menu.submarca}</Text>
               </View>
 
               <Pressable
@@ -132,7 +102,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               <Text style={styles.etiquetaMenu}>MENÚ PRINCIPAL</Text>
 
               <View style={styles.lista}>
-                {opciones.map((opcion) => {
+                {menu.opciones.map((opcion) => {
                   const activa = esActiva(opcion.ruta);
 
                   return (

@@ -11,6 +11,9 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
+
+import { iniciarSesionDemo, mensajeDeLogin, type RolDemo } from '../services/auth.service';
 
 import logoUCN from '../../../../apps/shared/assets/logoUCN.png';
 import logoFAMED from '../../../shared/assets/logoFAMED.png';
@@ -20,13 +23,48 @@ export default function Login() {
   const [contrasena, setContrasena] = useState('');
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
+  const [error, setError] = useState('');
+  const [entrando, setEntrando] = useState(false);
+
+  const RUTAS: Record<RolDemo, '/becado/panelBecado' | '/admin/panelAdmin' | '/proveedor/panelProveedor'> = {
+    residente: '/becado/panelBecado',
+    admin: '/admin/panelAdmin',
+    proveedor: '/proveedor/panelProveedor',
+  };
+
+  async function entrarComo(rol: RolDemo) {
+    if (entrando) return;
+    setError('');
+    setEntrando(true);
+    try {
+      await iniciarSesionDemo(rol);
+      router.replace(RUTAS[rol]);
+    } catch (e) {
+      setError(mensajeDeLogin(e));
+    } finally {
+      setEntrando(false);
+    }
+  }
+
   function handleSubmit() {
-    // Aquí conectaremos el formulario con el backend.
-    // No iniciar sesión ni navegar sin validar las credenciales.
-    console.log('Formulario de login preparado', {
-      usuario,
-      contrasenaIngresada: contrasena.length > 0,
-    });
+    const usuarioIngresado = usuario.trim().toLowerCase();
+
+    if (!usuarioIngresado || !contrasena) {
+      setError('Ingresa tu usuario y contraseña.');
+      return;
+    }
+
+    if (contrasena !== '1234') {
+      setError('Contraseña incorrecta.');
+      return;
+    }
+
+    if (usuarioIngresado === 'residente' || usuarioIngresado === 'admin' || usuarioIngresado === 'proveedor') {
+      void entrarComo(usuarioIngresado);
+      return;
+    }
+
+    setError('Usuario de prueba no válido.');
   }
 
   return (
@@ -140,6 +178,25 @@ export default function Login() {
               >
                 <Text style={styles.submitText}>Iniciar sesión</Text>
               </Pressable>
+            </View>
+
+            {error !== '' && <Text style={styles.error}>{error}</Text>}
+
+            <View style={styles.demo}>
+              <Text style={styles.demoTitulo}>Modo demostración</Text>
+              {(['residente', 'admin', 'proveedor'] as const).map((rol) => (
+                <Pressable
+                  key={rol}
+                  style={({ pressed }) => [styles.demoBoton, pressed && styles.demoBotonPressed]}
+                  onPress={() => void entrarComo(rol)}
+                  disabled={entrando}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.demoBotonTexto}>
+                    {entrando ? 'Entrando…' : `Entrar como ${rol === 'admin' ? 'administrador' : rol}`}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
 
             <View style={styles.footer}>
@@ -285,6 +342,40 @@ const styles = StyleSheet.create({
   submitText: {
     color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: '700',
+  },
+  error: {
+    marginTop: 16,
+    color: '#B3261E',
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  demo: {
+    marginTop: 24,
+    gap: 10,
+  },
+  demoTitulo: {
+    color: '#777777',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  demoBoton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#AC6D33',
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  demoBotonPressed: {
+    backgroundColor: 'rgba(172, 109, 51, 0.12)',
+  },
+  demoBotonTexto: {
+    color: '#AC6D33',
+    fontSize: 13,
     fontWeight: '700',
   },
   footer: {
