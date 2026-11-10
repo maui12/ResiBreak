@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -13,7 +14,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 
-import { iniciarSesionDemo, mensajeDeLogin, type RolDemo } from '../services/auth.service';
+import { iniciarSesionConRut, mensajeDeLogin } from '../services/auth.service';
 
 import logoUCN from '../../../../apps/shared/assets/logoUCN.png';
 import logoFAMED from '../../../shared/assets/logoFAMED.png';
@@ -26,45 +27,25 @@ export default function Login() {
   const [error, setError] = useState('');
   const [entrando, setEntrando] = useState(false);
 
-  const RUTAS: Record<RolDemo, '/becado/panelBecado' | '/admin/panelAdmin' | '/proveedor/panelProveedor'> = {
-    residente: '/becado/panelBecado',
-    admin: '/admin/panelAdmin',
-    proveedor: '/proveedor/panelProveedor',
-  };
-
-  async function entrarComo(rol: RolDemo) {
+  async function handleSubmit() {
     if (entrando) return;
+
+    if (!usuario.trim() || !contrasena) {
+      setError('Ingresa tu RUT y contraseña.');
+      return;
+    }
+
     setError('');
     setEntrando(true);
     try {
-      await iniciarSesionDemo(rol);
-      router.replace(RUTAS[rol]);
+      const ruta = await iniciarSesionConRut(usuario, contrasena);
+      setContrasena('');
+      router.replace(ruta);
     } catch (e) {
       setError(mensajeDeLogin(e));
     } finally {
       setEntrando(false);
     }
-  }
-
-  function handleSubmit() {
-    const usuarioIngresado = usuario.trim().toLowerCase();
-
-    if (!usuarioIngresado || !contrasena) {
-      setError('Ingresa tu usuario y contraseña.');
-      return;
-    }
-
-    if (contrasena !== '1234') {
-      setError('Contraseña incorrecta.');
-      return;
-    }
-
-    if (usuarioIngresado === 'residente' || usuarioIngresado === 'admin' || usuarioIngresado === 'proveedor') {
-      void entrarComo(usuarioIngresado);
-      return;
-    }
-
-    setError('Usuario de prueba no válido.');
   }
 
   return (
@@ -113,19 +94,19 @@ export default function Login() {
 
             <View style={styles.form}>
               <View style={styles.field}>
-                <Text style={styles.label}>Usuario</Text>
+                <Text style={styles.label}>RUT</Text>
 
                 <TextInput
                   style={styles.input}
-                  placeholder="Ingresa tu RUT o correo"
+                  placeholder="Ej: 12.345.678-5"
                   placeholderTextColor="#999999"
                   value={usuario}
                   onChangeText={setUsuario}
-                  autoCapitalize="none"
+                  autoCapitalize="characters"
                   autoCorrect={false}
                   autoComplete="username"
                   textContentType="username"
-                  accessibilityLabel="Usuario"
+                  accessibilityLabel="RUT"
                   returnKeyType="next"
                 />
               </View>
@@ -146,7 +127,7 @@ export default function Login() {
                     textContentType="password"
                     accessibilityLabel="Contraseña"
                     returnKeyType="done"
-                    onSubmitEditing={handleSubmit}
+                    onSubmitEditing={() => void handleSubmit()}
                   />
 
                   <Pressable
@@ -172,32 +153,26 @@ export default function Login() {
                 style={({ pressed }) => [
                   styles.submitButton,
                   pressed && styles.submitButtonPressed,
+                  entrando && styles.submitButtonDisabled,
                 ]}
-                onPress={handleSubmit}
+                onPress={() => void handleSubmit()}
+                disabled={entrando}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: entrando, busy: entrando }}
               >
-                <Text style={styles.submitText}>Iniciar sesión</Text>
+                {entrando ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitText}>Iniciar sesión</Text>
+                )}
               </Pressable>
             </View>
 
-            {error !== '' && <Text style={styles.error}>{error}</Text>}
-
-            <View style={styles.demo}>
-              <Text style={styles.demoTitulo}>Modo demostración</Text>
-              {(['residente', 'admin', 'proveedor'] as const).map((rol) => (
-                <Pressable
-                  key={rol}
-                  style={({ pressed }) => [styles.demoBoton, pressed && styles.demoBotonPressed]}
-                  onPress={() => void entrarComo(rol)}
-                  disabled={entrando}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.demoBotonTexto}>
-                    {entrando ? 'Entrando…' : `Entrar como ${rol === 'admin' ? 'administrador' : rol}`}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            {error !== '' && (
+              <Text style={styles.error} accessibilityRole="alert">
+                {error}
+              </Text>
+            )}
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>
@@ -339,6 +314,9 @@ const styles = StyleSheet.create({
   submitButtonPressed: {
     backgroundColor: '#925A2A',
   },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
   submitText: {
     color: '#FFFFFF',
     fontSize: 14,
@@ -350,33 +328,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     textAlign: 'center',
-  },
-  demo: {
-    marginTop: 24,
-    gap: 10,
-  },
-  demoTitulo: {
-    color: '#777777',
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  demoBoton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#AC6D33',
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
-  },
-  demoBotonPressed: {
-    backgroundColor: 'rgba(172, 109, 51, 0.12)',
-  },
-  demoBotonTexto: {
-    color: '#AC6D33',
-    fontSize: 13,
-    fontWeight: '700',
   },
   footer: {
     marginTop: 28,

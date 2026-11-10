@@ -41,7 +41,7 @@ export const MENU_RESIDENTE: MenuSidebar = {
     },
     {
       titulo: 'Cambiar un pedido',
-      descripcion: 'Modifica un pedido agendado',
+      descripcion: 'Hospital, turno o fecha',
       icono: '⇄',
       ruta: '/becado/cambiarPedido',
     },

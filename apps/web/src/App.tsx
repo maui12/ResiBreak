@@ -6,6 +6,7 @@ import Configuracion from './pages/Admin/Configuracion/Configuracion.tsx';
 import Becados from './pages/Admin/Becados/Becados.tsx';
 import Informes from './pages/Admin/Informes/Informes.tsx';
 import Pedidos from './pages/Admin/Pedidos/Pedidos.tsx';
+import RutaProtegida from './../../api/src/components/rutaProtegida/rutaProtegida.tsx';
 import Login from './pages/Login/Login';
 
 import PedidosDeHoy from './pages/Proveedor/PedidosDeHoy/PedidosDeHoy.tsx';
@@ -29,10 +30,13 @@ function App() {
         <Route path="pedidos" element={<Pedidos />} />
       </Route>
 
-
+      //quitar después a administrador, es solo para pruebas
       <Route
         path="/proveedor/pedidos-de-hoy"
-        element={<PedidosDeHoy />}
+        element={
+          <RutaProtegida roles={['proveedor','administrador']}>
+          </RutaProtegida>
+        }
       />
 
       <Route path="*" element={<Navigate to="/login" replace />} />

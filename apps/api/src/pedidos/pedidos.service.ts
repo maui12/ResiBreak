@@ -22,15 +22,15 @@ export class PedidosService {
     if (!(await this.becados.existsBy({ id: dto.becadoId, activo: true }))) {
       throw new NotFoundException('Becado no encontrado o inactivo');
     }
-    if (dto.hospitalId !== undefined && !(await this.repo.manager.existsBy(Hospital, { id: dto.hospitalId }))) {
+    if (!(await this.repo.manager.existsBy(Hospital, { id: dto.hospitalId }))) {
       throw new NotFoundException('Hospital no encontrado');
     }
     const config = await this.configuracion.obtener();
     const filas = [...new Set(dto.comidas)].map((tipo) =>
       this.repo.create({
         becadoId: dto.becadoId,
+        hospitalId: dto.hospitalId,
         fecha: dto.fecha,
-        hospitalId: dto.hospitalId ?? null,
         tipoComida: tipo,
         valorUnitario: config[CAMPO_COSTO[tipo]],
       }),
@@ -44,33 +44,42 @@ export class PedidosService {
     const qb = this.repo
       .createQueryBuilder('p')
       .innerJoinAndSelect('p.becado', 'b')
-      .innerJoinAndSelect('b.hospital', 'h')
-      .leftJoinAndSelect('p.hospital', 'ph') // hospital de entrega del pedido (si es null, vale el del becado)
+      .innerJoinAndSelect('p.hospital', 'h')
       .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta });
-    if (q.hospitalId) {
-      qb.andWhere('COALESCE(p.hospitalId, b.hospitalId) = :hospitalId', { hospitalId: q.hospitalId });
-    }
+    if (q.hospitalId) qb.andWhere('p.hospitalId = :hospitalId', { hospitalId: q.hospitalId });
     if (q.estado) qb.andWhere('p.estado = :estado', { estado: q.estado });
     const filas = await qb.orderBy('p.fecha', 'ASC').addOrderBy('b.nombre', 'ASC').getMany();
 
+    const PRIORIDAD: Record<EstadoPedido, number> = { pendiente: 3, entregado: 2, cancelado: 1 };
     const grupos = new Map<
       string,
-      { becadoId: number; becado: string; hospital: string; hospitalId: number; fecha: string; dia: number; comidas: TipoComida[]; estado: EstadoPedido }
+      {
+        becadoId: number;
+        becado: string;
+        hospital: string;
+        hospitalId: number;
+        fecha: string;
+        dia: number;
+        comidas: TipoComida[];
+        estado: EstadoPedido;
+      }
     >();
     for (const f of filas) {
+      // Todas las comidas de un becado en un día van al mismo hospital (lo garantiza el flujo del residente).
       const clave = `${f.becadoId}|${f.fecha}`;
       const grupo = grupos.get(clave) ?? {
         becadoId: f.becadoId,
         becado: f.becado.nombre,
-        hospital: (f.hospital ?? f.becado.hospital).nombre,
-        hospitalId: f.hospitalId ?? f.becado.hospitalId,
+        hospital: f.hospital.nombre,
+        hospitalId: f.hospitalId,
         fecha: f.fecha,
         dia: Number(f.fecha.slice(8, 10)),
         comidas: [],
-        estado: 'Repartido' as EstadoPedido,
+        estado: f.estado,
       };
       grupo.comidas.push(f.tipoComida);
-      if (f.estado === 'Programado') grupo.estado = 'Programado'; // basta una pendiente
+      // el día se muestra con el estado "más pendiente": basta una pendiente para que el día esté pendiente
+      if (PRIORIDAD[f.estado] > PRIORIDAD[grupo.estado]) grupo.estado = f.estado;
       grupos.set(clave, grupo);
     }
     return [...grupos.values()];

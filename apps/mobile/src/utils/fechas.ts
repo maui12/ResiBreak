@@ -63,17 +63,9 @@ export function mesCorto(fecha: Date): string {
   return MESES_CORTOS[fecha.getMonth()];
 }
 
-/** Meses (anio, mes de 1 a 12) que toca el rango [desde, hasta]. */
-export function mesesQueCubre(desde: Date, hasta: Date): { anio: number; mes: number }[] {
-  const meses: { anio: number; mes: number }[] = [];
-  let cursor = new Date(desde.getFullYear(), desde.getMonth(), 1);
-  const ultimo = new Date(hasta.getFullYear(), hasta.getMonth(), 1);
-
-  while (cursor <= ultimo) {
-    meses.push({ anio: cursor.getFullYear(), mes: cursor.getMonth() + 1 });
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-  }
-  return meses;
+/** Suma días a una fecha AAAA-MM-DD y devuelve otra AAAA-MM-DD. */
+export function sumarDiasClave(clave: string, dias: number): string {
+  return claveFecha(sumarDias(fechaDesdeClave(clave), dias));
 }
 
 /** Cantidad de celdas vacías antes del día 1 (la semana empieza en lunes). `mes` va de 1 a 12. */
@@ -84,12 +76,13 @@ export function huecosInicioMes(anio: number, mes: number): number {
 /* ------------------------------------------------------------------
    Regla de anticipación mínima
 
-   Es la misma que aplica el backend al crear un turno: el día se mide
-   desde las 00:00, así que un día solo se puede agendar si su inicio
-   queda a `anticipacionMinimaHoras` o más de distancia desde ahora.
+   Es la misma que aplica el backend a los pedidos del residente: el día
+   se mide desde las 00:00, así que un día solo se puede agendar (o un
+   pedido cambiar) si su inicio queda a `anticipacionMinimaHoras` o más
+   de distancia desde ahora.
 ------------------------------------------------------------------- */
 
-/** Primer instante en que se puede iniciar un turno: ahora + anticipación mínima. */
+/** Primer instante en que puede empezar un día agendable: ahora + anticipación mínima. */
 export function momentoMinimoReserva(ahora: Date, anticipacionMinimaHoras: number): Date {
   return new Date(ahora.getTime() + anticipacionMinimaHoras * 3_600_000);
 }

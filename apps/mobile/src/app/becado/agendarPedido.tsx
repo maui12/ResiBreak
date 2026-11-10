@@ -1,27 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { mensajeDeError } from '@/api';
 import EstadoCarga from '@/components/EstadoCarga';
 import ScreenLayout from '@/components/ScreenLayout';
-import CalendarioReserva from '@/components/becados/CalendarioReserva';
+import CalendarioReserva, { type DiaCalendario } from '@/components/becados/CalendarioReserva';
 import OpcionSeleccion from '@/components/becados/OpcionSeleccion';
 import Paso from '@/components/becados/Paso';
 import { MENU_RESIDENTE } from '@/constants/menus';
 import { Colors, Radios, Spacing } from '@/constants/theme';
 import { useAhora } from '@/hooks/use-ahora';
-import { useResidenteActual } from '@/hooks/use-becado';
+import { useDatosResidente, useDiasDelMes } from '@/hooks/use-becado';
 import {
-  guardarPedido,
-  obtenerDiasAgendables,
-  obtenerHospitales,
-  obtenerReglas,
-  obtenerTurnosDisponibles,
-  type DiaAgendable,
-  type Hospital,
-  type ReglasAgendamiento,
-  type TipoTurno,
+  NOMBRE_COMIDA,
+  agendarPedido,
+  type DiaDelMes,
+  type TipoComida,
+  type TurnoDisponible,
 } from '@/services/becados.service';
 import {
   claveFecha,
@@ -31,111 +27,97 @@ import {
   inicioDelDia,
   momentoMinimoReserva,
   primerDiaReservable,
+  sumarDiasClave,
 } from '@/utils/fechas';
+import { horarioTurno, motivoTurno, restriccionesTurno, vigenciaTurno } from '@/utils/turnos';
 
-const MAX_MESES_ADELANTE = 12;
+const indiceMes = (m: { anio: number; mes: number }) => m.anio * 12 + m.mes;
+const nombres = (tipos: TipoComida[]) => tipos.map((t) => NOMBRE_COMIDA[t]).join(', ');
+
+/** Descripción de un turno en la lista: horario, comidas, restricciones y vigencia. */
+function describirTurno(turno: TurnoDisponible): string {
+  return [
+    horarioTurno(turno),
+    `Comidas: ${nombres(turno.comidas)}`,
+    restriccionesTurno(turno),
+    vigenciaTurno(turno),
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
 
 export default function AgendarPedidoScreen() {
-  const {
-    residente,
-    cargando: cargandoResidente,
-    error: errorResidente,
-    recargar: recargarResidente,
-  } = useResidenteActual();
+  const { datos, cargando, error, recargar } = useDatosResidente();
   const ahora = useAhora();
 
-  /* ---- Datos base: hospitales y reglas (anticipación mínima) ---- */
-  const [base, setBase] = useState<{ hospitales: Hospital[]; reglas: ReglasAgendamiento } | null>(null);
-  const [errorBase, setErrorBase] = useState<string | null>(null);
-  const [intentoBase, setIntentoBase] = useState(0);
-
-  useEffect(() => {
-    let activo = true;
-
-    Promise.all([obtenerHospitales(), obtenerReglas()])
-      .then(([hospitales, reglas]) => {
-        if (activo) setBase({ hospitales, reglas });
-      })
-      .catch((e: unknown) => {
-        if (activo) setErrorBase(mensajeDeError(e));
-      });
-
-    return () => {
-      activo = false;
-    };
-  }, [intentoBase]);
-
-  const reintentarBase = () => {
-    setErrorBase(null);
-    setIntentoBase((n) => n + 1);
-  };
-
   /* ---- Selección del usuario ---- */
-  const [hospitalElegido, setHospitalElegido] = useState<number | null>(null);
-  const [tipoTurno, setTipoTurno] = useState<TipoTurno | null>(null);
-  const [fecha, setFecha] = useState<string | null>(null);
+  const [hospitalId, setHospitalId] = useState<number | null>(null);
+  const [turnoId, setTurnoId] = useState<number | null>(null);
+  const [seleccion, setSeleccion] = useState<DiaDelMes | null>(null);
   const [cursor, setCursor] = useState<{ anio: number; mes: number } | null>(null);
 
-  /* ---- Cálculos derivados ---- */
-  const momentoMinimo = base ? momentoMinimoReserva(ahora, base.reglas.anticipacionMinimaHoras) : null;
+  /* ---- Reglas y ventana de fechas ---- */
+  const reglas = datos?.reglas ?? null;
+  const momentoMinimo = reglas ? momentoMinimoReserva(ahora, reglas.anticipacionMinimaHoras) : null;
   const primerDia = momentoMinimo ? primerDiaReservable(momentoMinimo) : null;
+  const limite = datos && reglas ? sumarDiasClave(datos.hoy, reglas.maxDiasAnticipacion) : null;
+
   const primerMes = primerDia ? { anio: primerDia.getFullYear(), mes: primerDia.getMonth() + 1 } : null;
+  const ultimoMes = limite ? { anio: Number(limite.slice(0, 4)), mes: Number(limite.slice(5, 7)) } : null;
   const mesActual = cursor ?? primerMes;
+  const puedeRetroceder = !!(mesActual && primerMes && indiceMes(mesActual) > indiceMes(primerMes));
+  const puedeAvanzar = !!(mesActual && ultimoMes && indiceMes(mesActual) < indiceMes(ultimoMes));
 
-  // El hospital del residente viene preseleccionado; puede cambiarlo.
-  const hospitalPorDefecto =
-    residente && base
-      ? (base.hospitales.find((h) => h.id === residente.hospital.id)?.id ?? null)
-      : null;
-  const hospitalId = hospitalElegido ?? hospitalPorDefecto;
-  const hospital = base?.hospitales.find((h) => h.id === hospitalId) ?? null;
-
-  const turnos = useMemo(
-    () => (residente ? obtenerTurnosDisponibles(residente.especialidad) : []),
-    [residente],
-  );
-  const turno = turnos.find((t) => t.tipo === tipoTurno) ?? null;
-
-  // Si pasa el tiempo y la fecha elegida deja de cumplir la anticipación, se descarta.
-  const fechaElegida =
-    fecha && momentoMinimo && esFechaReservable(fecha, momentoMinimo) ? fecha : null;
+  /* ---- Derivados de la selección ---- */
+  const hospital = datos?.hospitales.find((h) => h.id === hospitalId) ?? null;
+  const turno = datos?.turnosDisponibles.find((t) => t.id === turnoId) ?? null;
 
   /* ---- Días del mes visible ---- */
-  const [diasCargados, setDiasCargados] = useState<{ clave: string; dias: DiaAgendable[] } | null>(null);
-  const [errorDias, setErrorDias] = useState<{ clave: string; mensaje: string } | null>(null);
-  const [versionDias, setVersionDias] = useState(0);
+  const { dias, error: errorDias, recargar: recargarDias } = useDiasDelMes(mesActual?.anio, mesActual?.mes);
 
-  const anioVisible = mesActual?.anio;
-  const mesVisible = mesActual?.mes;
-  const residenteId = residente?.id;
-  const claveMes = anioVisible !== undefined && mesVisible !== undefined ? `${anioVisible}-${mesVisible}` : null;
-  const dias = diasCargados && diasCargados.clave === claveMes ? diasCargados.dias : null;
-  const errorDelMes = errorDias && errorDias.clave === claveMes ? errorDias.mensaje : null;
+  function motivoNoDisponible(dia: DiaDelMes): string | null {
+    if (!momentoMinimo || !limite) return 'cargando';
+    if (!esFechaReservable(dia.fecha, momentoMinimo)) return 'fuera del plazo de anticipación mínima';
+    if (dia.fecha > limite) return `más de ${reglas?.maxDiasAnticipacion} días hacia adelante`;
+    if (dia.conPedido) return 'ya tienes un pedido ese día';
+    return turno ? motivoTurno(turno, dia) : 'elige primero un turno';
+  }
 
-  useEffect(() => {
-    if (anioVisible === undefined || mesVisible === undefined || residenteId === undefined) return;
-    const clave = `${anioVisible}-${mesVisible}`;
-    let activo = true;
+  const diasCalendario: DiaCalendario[] | null = dias
+    ? dias.map((d) => ({ ...d, motivoNoDisponible: motivoNoDisponible(d) }))
+    : null;
 
-    obtenerDiasAgendables(anioVisible, mesVisible, residenteId)
-      .then((resultado) => {
-        if (!activo) return;
-        setDiasCargados({ clave, dias: resultado });
-        setErrorDias(null);
-      })
-      .catch((e: unknown) => {
-        if (activo) setErrorDias({ clave, mensaje: mensajeDeError(e) });
-      });
+  // Si el día está en el mes visible se usan sus datos frescos; si no, los que tenía al elegirlo.
+  const diaElegido = (seleccion && dias?.find((d) => d.fecha === seleccion.fecha)) ?? seleccion;
+  // Si pasa el tiempo o cambian los datos y el día deja de estar disponible, se descarta.
+  const fechaElegida = diaElegido && motivoNoDisponible(diaElegido) === null ? diaElegido.fecha : null;
 
-    return () => {
-      activo = false;
-    };
-  }, [anioVisible, mesVisible, residenteId, versionDias]);
+  /* ---- Guardar ---- */
+  const [guardando, setGuardando] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+  const [guardado, setGuardado] = useState<{ fecha: string; hospital: string; turno: string } | null>(null);
 
-  const recargarDias = () => {
-    setErrorDias(null);
-    setDiasCargados(null);
-    setVersionDias((n) => n + 1);
+  const puedeGuardar = !!(hospital && turno && fechaElegida) && !guardando;
+
+  const limpiarMensajes = () => {
+    setGuardado(null);
+    setErrorGuardar(null);
+  };
+
+  const elegirHospital = (id: number) => {
+    setHospitalId(id);
+    limpiarMensajes();
+  };
+
+  const elegirTurno = (id: number) => {
+    setTurnoId(id);
+    setSeleccion(null); // cada turno tiene sus propios días disponibles
+    limpiarMensajes();
+  };
+
+  const elegirFecha = (clave: string) => {
+    setSeleccion(dias?.find((d) => d.fecha === clave) ?? null);
+    limpiarMensajes();
   };
 
   const cambiarMes = (delta: number) => {
@@ -144,56 +126,26 @@ export default function AgendarPedidoScreen() {
     setCursor({ anio: nuevo.getFullYear(), mes: nuevo.getMonth() + 1 });
   };
 
-  const indiceMes = (m: { anio: number; mes: number }) => m.anio * 12 + m.mes;
-  const puedeRetroceder = !!(mesActual && primerMes && indiceMes(mesActual) > indiceMes(primerMes));
-  const puedeAvanzar = !!(mesActual && primerMes && indiceMes(mesActual) < indiceMes(primerMes) + MAX_MESES_ADELANTE);
-
-  /* ---- Guardar ---- */
-  const [guardando, setGuardando] = useState(false);
-  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
-  const [fechaGuardada, setFechaGuardada] = useState<string | null>(null);
-
-  const puedeGuardar = !!(residente && hospitalId !== null && turno && fechaElegida) && !guardando;
-
-  const elegirHospital = (id: number) => {
-    setHospitalElegido(id);
-    setFechaGuardada(null);
-    setErrorGuardar(null);
-  };
-
-  const elegirTurno = (tipo: TipoTurno) => {
-    setTipoTurno(tipo);
-    setFecha(null); // el tipo de turno cambia qué días se pueden elegir
-    setFechaGuardada(null);
-    setErrorGuardar(null);
-  };
-
-  const elegirFecha = (clave: string) => {
-    setFecha(clave);
-    setFechaGuardada(null);
-    setErrorGuardar(null);
-  };
-
   async function guardar() {
-    if (!residente || !turno || !fecha || !base) return;
+    if (!hospital || !turno || !fechaElegida || !reglas) return;
 
     // Revalidación con la hora exacta del momento de guardar.
-    const minimo = momentoMinimoReserva(new Date(), base.reglas.anticipacionMinimaHoras);
-    if (!esFechaReservable(fecha, minimo)) {
+    if (!esFechaReservable(fechaElegida, momentoMinimoReserva(new Date(), reglas.anticipacionMinimaHoras))) {
       setErrorGuardar(
-        `Esa fecha ya no cumple la anticipación mínima de ${base.reglas.anticipacionMinimaHoras} horas. Elige otra.`,
+        `Esa fecha ya no cumple la anticipación mínima de ${reglas.anticipacionMinimaHoras} horas. Elige otra.`,
       );
-      setFecha(null);
+      setSeleccion(null);
       return;
     }
 
     setGuardando(true);
     setErrorGuardar(null);
     try {
-      await guardarPedido({ residenteId: residente.id, fecha, turno, hospitalId: hospitalId ?? undefined });
-      setFechaGuardada(fecha);
-      setFecha(null);
-      recargarDias(); // el día guardado pasa a estar ocupado
+      await agendarPedido({ fecha: fechaElegida, hospitalId: hospital.id, turnoDisponibleId: turno.id });
+      setGuardado({ fecha: fechaElegida, hospital: hospital.nombre, turno: turno.nombre });
+      setSeleccion(null);
+      recargarDias(); // el día guardado pasa a tener pedido
+      recargar();
     } catch (e) {
       setErrorGuardar(mensajeDeError(e));
     } finally {
@@ -201,34 +153,29 @@ export default function AgendarPedidoScreen() {
     }
   }
 
-  const horas = base?.reglas.anticipacionMinimaHoras ?? 0;
+  const horas = reglas?.anticipacionMinimaHoras ?? 0;
 
   return (
     <ScreenLayout titulo="Agendar pedidos" subtitulo="Hospital, turno y fecha" menu={MENU_RESIDENTE}>
       <View style={styles.contenido}>
-        <EstadoCarga
-          cargando={(cargandoResidente || (base === null && errorBase === null)) && !errorResidente}
-          error={errorResidente ?? errorBase}
-          onReintentar={errorResidente ? recargarResidente : reintentarBase}
-        >
-          {residente && base && momentoMinimo && primerDia && mesActual && (
+        <EstadoCarga cargando={cargando} error={error} onReintentar={recargar}>
+          {datos && reglas && momentoMinimo && primerDia && mesActual && (
             <>
               {/* Paso 1: hospital */}
               <Paso
                 numero={1}
                 titulo="Seleccionar hospital"
-                ayuda="Hospitales disponibles"
-                completo={hospitalId !== null}
+                ayuda="Hospital al que se entrega este pedido"
+                completo={hospital !== null}
               >
-                {base.hospitales.length === 0 ? (
+                {datos.hospitales.length === 0 ? (
                   <Text style={styles.vacio}>No hay hospitales disponibles.</Text>
                 ) : (
                   <View style={styles.opciones} accessibilityRole="radiogroup">
-                    {base.hospitales.map((h) => (
+                    {datos.hospitales.map((h) => (
                       <OpcionSeleccion
                         key={h.id}
                         titulo={`Hospital de ${h.nombre}`}
-                        //descripcion={h.id === residente.hospital.id ? 'Tu hospital' : undefined}
                         seleccionada={h.id === hospitalId}
                         onPress={() => elegirHospital(h.id)}
                       />
@@ -241,21 +188,23 @@ export default function AgendarPedidoScreen() {
               <Paso
                 numero={2}
                 titulo="Seleccionar turno"
-                ayuda={`Turnos disponibles para ${residente.especialidad}`}
-                bloqueado={hospitalId === null}
+                ayuda={`Turnos disponibles para ${datos.residente.especialidad}. Las comidas vienen incluidas en el turno.`}
+                bloqueado={hospital === null}
                 completo={turno !== null}
               >
-                {turnos.length === 0 ? (
-                  <Text style={styles.vacio}>No hay turnos disponibles para tu especialidad.</Text>
+                {datos.turnosDisponibles.length === 0 ? (
+                  <Text style={styles.vacio}>
+                    No hay turnos disponibles para {datos.residente.especialidad}. Contacta a administración.
+                  </Text>
                 ) : (
                   <View style={styles.opciones} accessibilityRole="radiogroup">
-                    {turnos.map((t) => (
+                    {datos.turnosDisponibles.map((t) => (
                       <OpcionSeleccion
-                        key={t.tipo}
+                        key={t.id}
                         titulo={t.nombre}
-                        descripcion={`${t.descripcion} · ${t.comidas.join(', ')}`}
-                        seleccionada={t.tipo === tipoTurno}
-                        onPress={() => elegirTurno(t.tipo)}
+                        descripcion={describirTurno(t)}
+                        seleccionada={t.id === turnoId}
+                        onPress={() => elegirTurno(t.id)}
                       />
                     ))}
                   </View>
@@ -266,7 +215,7 @@ export default function AgendarPedidoScreen() {
               <Paso
                 numero={3}
                 titulo="Seleccionar fecha"
-                ayuda={`Anticipación mínima: ${horas} h. Primer día disponible: ${formatoFechaLarga(primerDia)}.`}
+                ayuda={`Anticipación mínima: ${horas} h. Primer día posible: ${formatoFechaLarga(primerDia)}.`}
                 bloqueado={turno === null}
                 completo={fechaElegida !== null}
               >
@@ -274,11 +223,9 @@ export default function AgendarPedidoScreen() {
                   <CalendarioReserva
                     anio={mesActual.anio}
                     mes={mesActual.mes}
-                    dias={dias}
-                    errorDias={errorDelMes}
+                    dias={diasCalendario}
+                    errorDias={errorDias}
                     onReintentar={recargarDias}
-                    tipoTurno={turno.tipo}
-                    momentoMinimo={momentoMinimo}
                     hoy={claveFecha(inicioDelDia(ahora))}
                     seleccionada={fechaElegida}
                     onSeleccionar={elegirFecha}
@@ -300,7 +247,9 @@ export default function AgendarPedidoScreen() {
                   </View>
                   <View style={styles.resumenFila}>
                     <Text style={styles.resumenEtiqueta}>Turno</Text>
-                    <Text style={styles.resumenValor}>{turno.nombre}</Text>
+                    <Text style={styles.resumenValor}>
+                      {turno.nombre} · {horarioTurno(turno)}
+                    </Text>
                   </View>
                   <View style={styles.resumenFila}>
                     <Text style={styles.resumenEtiqueta}>Fecha</Text>
@@ -308,7 +257,7 @@ export default function AgendarPedidoScreen() {
                   </View>
                   <View style={styles.resumenFila}>
                     <Text style={styles.resumenEtiqueta}>Comidas</Text>
-                    <Text style={styles.resumenValor}>{turno.comidas.join(', ')}</Text>
+                    <Text style={styles.resumenValor}>{nombres(turno.comidas)}</Text>
                   </View>
                 </View>
               )}
@@ -319,11 +268,12 @@ export default function AgendarPedidoScreen() {
                 </View>
               )}
 
-              {fechaGuardada && (
+              {guardado && (
                 <View style={styles.exito} accessibilityRole="alert">
                   <Text style={styles.exitoTitulo}>Pedido guardado</Text>
                   <Text style={styles.exitoTexto}>
-                    Quedó agendado para el {formatoFechaLarga(fechaDesdeClave(fechaGuardada))}.
+                    {guardado.turno}, el {formatoFechaLarga(fechaDesdeClave(guardado.fecha))}, con entrega en el
+                    Hospital de {guardado.hospital}.
                   </Text>
                   <Pressable
                     onPress={() => router.navigate('/becado/panelBecado')}
@@ -336,7 +286,7 @@ export default function AgendarPedidoScreen() {
               )}
 
               <Pressable
-                onPress={guardar}
+                onPress={() => void guardar()}
                 disabled={!puedeGuardar}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: !puedeGuardar, busy: guardando }}
@@ -372,6 +322,7 @@ const styles = StyleSheet.create({
   vacio: {
     color: Colors.admin.textoSuave,
     fontSize: 13,
+    lineHeight: 19,
   },
 
   /* Resumen */

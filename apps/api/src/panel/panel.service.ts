@@ -29,7 +29,7 @@ export class PanelService {
 
     const [gasto, comidasRepartidas, becadosActivos, sobreLimite, porEspecialidad, contabilidad] = await Promise.all([
       pedidosMes().select('COALESCE(SUM(p.valorUnitario), 0)', 'total').getRawOne<{ total: string }>(),
-      pedidosMes().andWhere(`p.estado = 'Repartido'`).getCount(),
+      pedidosMes().andWhere('p.estado = :estado', { estado: 'entregado' }).getCount(),
       this.becados.countBy({ activo: true }),
       // El tope es una alerta, no un bloqueo: se cuentan los becados que lo superan.
       this.turnos

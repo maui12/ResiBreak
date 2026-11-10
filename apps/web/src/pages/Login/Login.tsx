@@ -1,5 +1,8 @@
 import { useState, type SyntheticEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {api, ApiError} from '../../../api/src/utils/api.js';
+import {cerrarSesion, guardarSesion} from '../../../api/src/utils/sesion.js';
+import { RUTA_INICIAL } from '../../../api/src/utils/roles.js';
 import './Login.css';
 import logoUCN from "../../../../shared/assets/logoUCN.png";
 import logoFAMED from "../../../../shared/assets/logoFAMED.png";
@@ -10,16 +13,39 @@ function Login() {
   const [usuario, setUsuario] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
+  const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
 
   function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError('');
+    setCargando(true);
 
-    // Aquí conectaremos el formulario con el backend de autenticación.
-    // No redirigir al panel hasta validar las credenciales.
-    console.log('Formulario de inicio de sesión preparado', {
-      usuario,
-      contrasenaIngresada: contrasena.length > 0,
-    });
+    try {
+      const { accessToken, rol } = await api<{ accessToken: string; rol: string }>(
+          '/auth/login',
+          {
+            method: 'POST',
+            // El backend espera exactamente { email, password }
+            body: JSON.stringify({ email: usuario.trim(), password: contrasena }),
+          },
+      );
+
+      const destino = RUTA_INICIAL[rol.toLowerCase()];
+      if (!destino) {
+        cerrarSesion();
+        setError('Tu usuario no tiene una vista habilitada.');
+        return;
+      }
+
+      guardarSesion(accessToken, rol);
+      navigate(destino, { replace: true });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Error inesperado');
+    } finally {
+      setCargando(false);
+    }
+    }
   }
 
   return (
@@ -101,9 +127,9 @@ function Login() {
               </button>
             </div>
           </div>
-
-          <button className="login-submit" type="submit">
-            Iniciar sesión
+          {error && <p className="login-error" role="alert">{error}</p>}
+          <button className="login-submit" type="submit" disabled={cargando}>
+            {cargando ? 'Ingresando...' : 'Iniciar Sesión'}
           </button>
         </form>
 

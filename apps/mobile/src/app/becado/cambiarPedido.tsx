@@ -1,29 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 
 import { mensajeDeError } from '@/api';
 import EstadoCarga from '@/components/EstadoCarga';
 import ScreenLayout from '@/components/ScreenLayout';
-import CalendarioReserva from '@/components/becados/CalendarioReserva';
+import CalendarioReserva, { type DiaCalendario } from '@/components/becados/CalendarioReserva';
 import OpcionSeleccion from '@/components/becados/OpcionSeleccion';
 import Paso from '@/components/becados/Paso';
 import { MENU_RESIDENTE } from '@/constants/menus';
 import { Colors, Radios, Spacing } from '@/constants/theme';
 import { useAhora } from '@/hooks/use-ahora';
-import { useResidenteActual } from '@/hooks/use-becado';
+import { useDatosResidente, useDiasDelMes } from '@/hooks/use-becado';
 import {
-  obtenerDiasAgendables,
-  obtenerHospitales,
-  obtenerPedidosProximosDias,
-  obtenerReglas,
-  obtenerTurnosDisponibles,
+  NOMBRE_COMIDA,
   reprogramarPedido,
-  type DiaAgendable,
-  type Hospital,
-  type PedidoResidente,
-  type ReglasAgendamiento,
-  type TipoTurno,
+  type DiaDelMes,
+  type TipoComida,
+  type TurnoDisponible,
 } from '@/services/becados.service';
 import {
   claveFecha,
@@ -33,186 +27,117 @@ import {
   inicioDelDia,
   momentoMinimoReserva,
   primerDiaReservable,
+  sumarDiasClave,
 } from '@/utils/fechas';
+import { horarioTurno, motivoTurno, restriccionesTurno, vigenciaTurno } from '@/utils/turnos';
 
-/** Cuántos días hacia adelante se buscan pedidos para poder cambiarlos. */
-const DIAS_BUSQUEDA = 60;
-const MAX_MESES_ADELANTE = 12;
+/** "mantener" = el pedido sigue en su día; "otra" = se mueve a otro día. */
+type EleccionFecha = 'mantener' | 'otra';
 
-/** "mantener" = no se cambia la fecha (por ejemplo, si solo se quiere cambiar el hospital). */
-type EleccionFecha = 'mantener' | TipoTurno;
+const indiceMes = (m: { anio: number; mes: number }) => m.anio * 12 + m.mes;
+const nombres = (tipos: TipoComida[]) => tipos.map((t) => NOMBRE_COMIDA[t]).join(', ');
+/** "el turno no está disponible los sábados" -> "El turno no está disponible los sábados" */
+const capitalizar = (texto: string) => texto.charAt(0).toUpperCase() + texto.slice(1);
+
+function describirTurno(turno: TurnoDisponible, esActual: boolean): string {
+  return [
+    esActual ? 'Turno actual del pedido' : null,
+    horarioTurno(turno),
+    `Comidas: ${nombres(turno.comidas)}`,
+    restriccionesTurno(turno),
+    vigenciaTurno(turno),
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
 
 export default function CambiarPedidoScreen() {
-  const {
-    residente,
-    cargando: cargandoResidente,
-    error: errorResidente,
-    recargar: recargarResidente,
-  } = useResidenteActual();
+  const { datos, cargando, error, recargar } = useDatosResidente();
   const ahora = useAhora();
   const claveHoy = claveFecha(inicioDelDia(ahora));
-  const residenteId = residente?.id;
-
-  /* ---- Datos base: hospitales y reglas (anticipación mínima) ---- */
-  const [base, setBase] = useState<{ hospitales: Hospital[]; reglas: ReglasAgendamiento } | null>(null);
-  const [errorBase, setErrorBase] = useState<string | null>(null);
-  const [intentoBase, setIntentoBase] = useState(0);
-
-  useEffect(() => {
-    let activo = true;
-
-    Promise.all([obtenerHospitales(), obtenerReglas()])
-      .then(([hospitales, reglas]) => {
-        if (activo) setBase({ hospitales, reglas });
-      })
-      .catch((e: unknown) => {
-        if (activo) setErrorBase(mensajeDeError(e));
-      });
-
-    return () => {
-      activo = false;
-    };
-  }, [intentoBase]);
-
-  const reintentarBase = () => {
-    setErrorBase(null);
-    setIntentoBase((n) => n + 1);
-  };
-
-  /* ---- Pedidos del residente ---- */
-  const [pedidos, setPedidos] = useState<PedidoResidente[] | null>(null);
-  const [errorPedidos, setErrorPedidos] = useState<string | null>(null);
-  const [versionPedidos, setVersionPedidos] = useState(0);
-
-  useEffect(() => {
-    if (residenteId === undefined) return;
-    let activo = true;
-
-    obtenerPedidosProximosDias(residenteId, fechaDesdeClave(claveHoy), DIAS_BUSQUEDA)
-      .then((datos) => {
-        if (!activo) return;
-        setPedidos(datos);
-        setErrorPedidos(null);
-      })
-      .catch((e: unknown) => {
-        if (activo) setErrorPedidos(mensajeDeError(e));
-      });
-
-    return () => {
-      activo = false;
-    };
-  }, [residenteId, claveHoy, versionPedidos]);
-
-  const recargarPedidos = () => {
-    setErrorPedidos(null);
-    setPedidos(null);
-    setVersionPedidos((n) => n + 1);
-  };
 
   /* ---- Selección del usuario ---- */
   const [fechaActual, setFechaActual] = useState<string | null>(null); // pedido que se quiere cambiar
   const [hospitalElegido, setHospitalElegido] = useState<number | null>(null); // null = el que ya tiene
+  const [turnoElegido, setTurnoElegido] = useState<number | null>(null); // null = el que ya tiene
   const [eleccionFecha, setEleccionFecha] = useState<EleccionFecha>('mantener');
-  const [fecha, setFecha] = useState<string | null>(null); // nueva fecha
+  const [seleccion, setSeleccion] = useState<DiaDelMes | null>(null); // nueva fecha
   const [cursor, setCursor] = useState<{ anio: number; mes: number } | null>(null);
 
-  /* ---- Cálculos derivados ---- */
-  const reglas = base?.reglas ?? null;
+  /* ---- Reglas y ventana de fechas ---- */
+  const reglas = datos?.reglas ?? null;
   const momentoMinimo = reglas ? momentoMinimoReserva(ahora, reglas.anticipacionMinimaHoras) : null;
   const primerDia = momentoMinimo ? primerDiaReservable(momentoMinimo) : null;
-  const primerMes = primerDia ? { anio: primerDia.getFullYear(), mes: primerDia.getMonth() + 1 } : null;
-  const mesActual = cursor ?? primerMes;
+  const limite = datos && reglas ? sumarDiasClave(datos.hoy, reglas.maxDiasAnticipacion) : null;
 
-  // Solo se pueden cambiar pedidos programados (no repartidos) que aún cumplan la anticipación mínima.
+  const primerMes = primerDia ? { anio: primerDia.getFullYear(), mes: primerDia.getMonth() + 1 } : null;
+  const ultimoMes = limite ? { anio: Number(limite.slice(0, 4)), mes: Number(limite.slice(5, 7)) } : null;
+  const mesActual = cursor ?? primerMes;
+  const puedeRetroceder = !!(mesActual && primerMes && indiceMes(mesActual) > indiceMes(primerMes));
+  const puedeAvanzar = !!(mesActual && ultimoMes && indiceMes(mesActual) < indiceMes(ultimoMes));
+
+  /* ---- Pedido a cambiar ---- */
+  // Solo pedidos sin comidas repartidas que aún cumplan la anticipación mínima.
   const modificables =
-    pedidos && momentoMinimo
-      ? pedidos.filter((p) => p.estado === 'Programado' && esFechaReservable(p.fecha, momentoMinimo))
+    datos && momentoMinimo
+      ? datos.pedidos.filter(
+          (p) => p.comidas.every((c) => c.estado === 'pendiente') && esFechaReservable(p.fecha, momentoMinimo),
+        )
       : [];
   const pedidoActual = modificables.find((p) => p.fecha === fechaActual) ?? null;
 
-  // Hospital: por defecto, el que ya tiene el pedido.
-  const hospitalActual = pedidoActual ? (base?.hospitales.find((h) => h.id === pedidoActual.hospitalId) ?? null) : null;
+  /* ---- Hospital ---- */
   const hospitalId = hospitalElegido ?? pedidoActual?.hospitalId ?? null;
-  const hospitalNuevo = base?.hospitales.find((h) => h.id === hospitalId) ?? null;
+  const hospitalNuevo = datos?.hospitales.find((h) => h.id === hospitalId) ?? null;
   const cambiaHospital = !!(pedidoActual && hospitalId !== null && hospitalId !== pedidoActual.hospitalId);
 
-  const turnos = useMemo(
-    () => (residente ? obtenerTurnosDisponibles(residente.especialidad) : []),
-    [residente],
-  );
-  const turno = eleccionFecha === 'mantener' ? null : (turnos.find((t) => t.tipo === eleccionFecha) ?? null);
+  /* ---- Turno ---- */
+  const turnoActualId = pedidoActual?.turno?.id ?? null;
+  const turnoFinalId = turnoElegido ?? turnoActualId;
+  // El turno actual puede no estar en la lista si administración lo desactivó.
+  const turnoFinal = datos?.turnosDisponibles.find((t) => t.id === turnoFinalId) ?? null;
+  const turnoActualOfrecido = turnoActualId !== null && datos?.turnosDisponibles.some((t) => t.id === turnoActualId);
+  const cambiaTurno = !!pedidoActual && turnoFinalId !== turnoActualId;
 
-  // Si pasa el tiempo y la fecha elegida deja de cumplir la anticipación, se descarta.
+  /* ---- Fecha ---- */
+  const { dias, error: errorDias, recargar: recargarDias } = useDiasDelMes(
+    eleccionFecha === 'otra' ? mesActual?.anio : undefined,
+    eleccionFecha === 'otra' ? mesActual?.mes : undefined,
+  );
+
+  function motivoNoDisponible(dia: DiaDelMes): string | null {
+    if (!momentoMinimo || !limite) return 'cargando';
+    if (dia.fecha === pedidoActual?.fecha) return 'es el día actual del pedido';
+    if (!esFechaReservable(dia.fecha, momentoMinimo)) return 'fuera del plazo de anticipación mínima';
+    if (dia.fecha > limite) return `más de ${reglas?.maxDiasAnticipacion} días hacia adelante`;
+    if (dia.conPedido) return 'ya tienes un pedido ese día';
+    return turnoFinal ? motivoTurno(turnoFinal, dia) : 'elige un turno disponible';
+  }
+
+  const diasCalendario: DiaCalendario[] | null = dias
+    ? dias.map((d) => ({ ...d, motivoNoDisponible: motivoNoDisponible(d) }))
+    : null;
+
+  // Si el día está en el mes visible se usan sus datos frescos; si no, los que tenía al elegirlo.
+  const diaElegido = (seleccion && dias?.find((d) => d.fecha === seleccion.fecha)) ?? seleccion;
   const fechaElegida =
-    fecha && momentoMinimo && fecha !== pedidoActual?.fecha && esFechaReservable(fecha, momentoMinimo)
-      ? fecha
-      : null;
-  const cambiaFecha = turno !== null && fechaElegida !== null;
-  const fechaPendiente = turno !== null && fechaElegida === null; // eligió cambiar la fecha pero aún no la escoge
+    eleccionFecha === 'otra' && diaElegido && motivoNoDisponible(diaElegido) === null ? diaElegido.fecha : null;
+  const cambiaFecha = fechaElegida !== null;
+  const fechaPendiente = eleccionFecha === 'otra' && fechaElegida === null; // eligió mover el pedido pero aún no el día
 
-  const hayCambio = cambiaHospital || cambiaFecha;
+  // Si se cambia el turno y se mantiene el día, el turno nuevo tiene que servir para ese día.
+  const motivoMantener =
+    pedidoActual && cambiaTurno && turnoFinal ? motivoTurno(turnoFinal, { fecha: pedidoActual.fecha }) : null;
+  const mantenerInvalido = eleccionFecha === 'mantener' && motivoMantener !== null;
 
-  /* ---- Días del mes visible ---- */
-  const [diasCargados, setDiasCargados] = useState<{ clave: string; dias: DiaAgendable[] } | null>(null);
-  const [errorDias, setErrorDias] = useState<{ clave: string; mensaje: string } | null>(null);
-  const [versionDias, setVersionDias] = useState(0);
-
-  const anioVisible = mesActual?.anio;
-  const mesVisible = mesActual?.mes;
-  const claveMes = anioVisible !== undefined && mesVisible !== undefined ? `${anioVisible}-${mesVisible}` : null;
-  const dias = diasCargados && diasCargados.clave === claveMes ? diasCargados.dias : null;
-  const errorDelMes = errorDias && errorDias.clave === claveMes ? errorDias.mensaje : null;
-
-  useEffect(() => {
-    if (anioVisible === undefined || mesVisible === undefined || residenteId === undefined) return;
-    const clave = `${anioVisible}-${mesVisible}`;
-    let activo = true;
-
-    obtenerDiasAgendables(anioVisible, mesVisible, residenteId)
-      .then((resultado) => {
-        if (!activo) return;
-        setDiasCargados({ clave, dias: resultado });
-        setErrorDias(null);
-      })
-      .catch((e: unknown) => {
-        if (activo) setErrorDias({ clave, mensaje: mensajeDeError(e) });
-      });
-
-    return () => {
-      activo = false;
-    };
-  }, [anioVisible, mesVisible, residenteId, versionDias]);
-
-  const recargarDias = () => {
-    setErrorDias(null);
-    setDiasCargados(null);
-    setVersionDias((n) => n + 1);
-  };
-
-  // Al volver a esta pantalla (por ejemplo, tras agendar otro pedido) se refrescan los datos.
-  useFocusEffect(
-    useCallback(() => {
-      setVersionPedidos((n) => n + 1);
-      setVersionDias((n) => n + 1);
-    }, []),
-  );
-
-  const cambiarMes = (delta: number) => {
-    if (!mesActual) return;
-    const nuevo = new Date(mesActual.anio, mesActual.mes - 1 + delta, 1);
-    setCursor({ anio: nuevo.getFullYear(), mes: nuevo.getMonth() + 1 });
-  };
-
-  const indiceMes = (m: { anio: number; mes: number }) => m.anio * 12 + m.mes;
-  const puedeRetroceder = !!(mesActual && primerMes && indiceMes(mesActual) > indiceMes(primerMes));
-  const puedeAvanzar = !!(mesActual && primerMes && indiceMes(mesActual) < indiceMes(primerMes) + MAX_MESES_ADELANTE);
+  const hayCambio = cambiaHospital || cambiaTurno || cambiaFecha;
 
   /* ---- Guardar ---- */
   const [guardando, setGuardando] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
   const [cambiosHechos, setCambiosHechos] = useState<string[] | null>(null);
 
-  const puedeGuardar = !!(residente && pedidoActual && hayCambio && !fechaPendiente) && !guardando;
+  const puedeGuardar = !!(pedidoActual && hayCambio && !fechaPendiente && !mantenerInvalido) && !guardando;
 
   const limpiarMensajes = () => {
     setCambiosHechos(null);
@@ -222,8 +147,9 @@ export default function CambiarPedidoScreen() {
   const elegirPedido = (clave: string) => {
     setFechaActual(clave);
     setHospitalElegido(null); // vuelve al hospital que ya tiene ese pedido
+    setTurnoElegido(null); // y a su turno
     setEleccionFecha('mantener');
-    setFecha(null);
+    setSeleccion(null);
     limpiarMensajes();
   };
 
@@ -232,65 +158,77 @@ export default function CambiarPedidoScreen() {
     limpiarMensajes();
   };
 
+  const elegirTurno = (id: number) => {
+    setTurnoElegido(id);
+    setSeleccion(null); // cada turno tiene sus propios días disponibles
+    limpiarMensajes();
+  };
+
   const elegirOpcionFecha = (eleccion: EleccionFecha) => {
     setEleccionFecha(eleccion);
-    setFecha(null); // el tipo de turno cambia qué días se pueden elegir
+    setSeleccion(null);
     limpiarMensajes();
   };
 
   const elegirFecha = (clave: string) => {
-    setFecha(clave);
+    setSeleccion(dias?.find((d) => d.fecha === clave) ?? null);
     limpiarMensajes();
   };
 
+  const cambiarMes = (delta: number) => {
+    if (!mesActual) return;
+    const nuevo = new Date(mesActual.anio, mesActual.mes - 1 + delta, 1);
+    setCursor({ anio: nuevo.getFullYear(), mes: nuevo.getMonth() + 1 });
+  };
+
   async function guardar() {
-    if (!residente || !pedidoActual || !reglas || !hayCambio) return;
+    if (!pedidoActual || !reglas || !hayCambio) return;
 
     // Revalidación con la hora exacta del momento de guardar.
     const minimo = momentoMinimoReserva(new Date(), reglas.anticipacionMinimaHoras);
     if (!esFechaReservable(pedidoActual.fecha, minimo)) {
-      setErrorGuardar(
-        `Este pedido ya no se puede cambiar: faltan menos de ${reglas.anticipacionMinimaHoras} horas.`,
-      );
+      setErrorGuardar(`Este pedido ya no se puede cambiar: faltan menos de ${reglas.anticipacionMinimaHoras} horas.`);
       setFechaActual(null);
-      setFecha(null);
-      recargarPedidos();
+      setSeleccion(null);
+      recargar();
       return;
     }
-    if (cambiaFecha && fechaElegida && !esFechaReservable(fechaElegida, minimo)) {
+    if (fechaElegida && !esFechaReservable(fechaElegida, minimo)) {
       setErrorGuardar(
         `Esa fecha ya no cumple la anticipación mínima de ${reglas.anticipacionMinimaHoras} horas. Elige otra.`,
       );
-      setFecha(null);
+      setSeleccion(null);
       return;
     }
 
     // Lo que se le confirma a la persona, armado antes de limpiar la selección.
     const confirmacion: string[] = [];
-    if (cambiaFecha && fechaElegida) {
+    if (fechaElegida) {
       confirmacion.push(
         `Ahora es el ${formatoFechaLarga(fechaDesdeClave(fechaElegida))} (antes, el ${formatoFechaLarga(fechaDesdeClave(pedidoActual.fecha))}).`,
       );
     }
-    if (cambiaHospital && hospitalNuevo) {
-      confirmacion.push(`Se entrega en el Hospital de ${hospitalNuevo.nombre}.`);
+    if (cambiaHospital && hospitalNuevo) confirmacion.push(`Se entrega en el Hospital de ${hospitalNuevo.nombre}.`);
+    if (cambiaTurno && turnoFinal) {
+      confirmacion.push(`Turno: ${turnoFinal.nombre}. Comidas: ${nombres(turnoFinal.comidas)}.`);
     }
 
     setGuardando(true);
     setErrorGuardar(null);
     try {
       await reprogramarPedido({
-        residenteId: residente.id,
         fechaActual: pedidoActual.fecha,
+        fechaNueva: fechaElegida ?? undefined,
         hospitalId: cambiaHospital && hospitalId !== null ? hospitalId : undefined,
-        nuevaFecha: turno && fechaElegida ? { fecha: fechaElegida, turno } : undefined,
+        turnoDisponibleId: cambiaTurno && turnoFinalId !== null ? turnoFinalId : undefined,
       });
       setCambiosHechos(confirmacion);
       setFechaActual(null);
       setHospitalElegido(null);
+      setTurnoElegido(null);
       setEleccionFecha('mantener');
-      setFecha(null);
-      recargarPedidos(); // el pedido cambió de día u hospital
+      setSeleccion(null);
+      recargar(); // el pedido cambió de día, hospital o turno
       recargarDias(); // el día viejo queda libre y el nuevo ocupado
     } catch (e) {
       setErrorGuardar(mensajeDeError(e));
@@ -302,14 +240,14 @@ export default function CambiarPedidoScreen() {
   const horas = reglas?.anticipacionMinimaHoras ?? 0;
 
   return (
-    <ScreenLayout titulo="Cambiar un pedido" subtitulo="Cambia el hospital o la fecha de un pedido agendado" menu={MENU_RESIDENTE}>
+    <ScreenLayout
+      titulo="Cambiar un pedido"
+      subtitulo="Cambia el hospital, el turno o la fecha de un pedido"
+      menu={MENU_RESIDENTE}
+    >
       <View style={styles.contenido}>
-        <EstadoCarga
-          cargando={(cargandoResidente || (base === null && errorBase === null)) && !errorResidente}
-          error={errorResidente ?? errorBase}
-          onReintentar={errorResidente ? recargarResidente : reintentarBase}
-        >
-          {residente && base && reglas && momentoMinimo && primerDia && mesActual && (
+        <EstadoCarga cargando={cargando} error={error} onReintentar={recargar}>
+          {datos && reglas && momentoMinimo && primerDia && mesActual && (
             <>
               {/* Éxito del cambio anterior */}
               {cambiosHechos && (
@@ -337,36 +275,35 @@ export default function CambiarPedidoScreen() {
                 ayuda={`Solo se pueden cambiar pedidos programados con al menos ${horas} h de anticipación.`}
                 completo={pedidoActual !== null}
               >
-                <EstadoCarga
-                  cargando={pedidos === null && errorPedidos === null}
-                  error={errorPedidos}
-                  onReintentar={recargarPedidos}
-                >
-                  {modificables.length === 0 ? (
-                    <View style={styles.vacioCaja}>
-                      <Text style={styles.vacio}>No tienes pedidos que se puedan cambiar.</Text>
-                      <Pressable
-                        onPress={() => router.navigate('/becado/agendarPedido')}
-                        accessibilityRole="button"
-                        style={({ pressed }) => [styles.botonSecundario, pressed && styles.presionado]}
-                      >
-                        <Text style={styles.botonSecundarioTexto}>Agendar un pedido</Text>
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <View style={styles.opciones} accessibilityRole="radiogroup">
-                      {modificables.map((p) => (
-                        <OpcionSeleccion
-                          key={p.fecha}
-                          titulo={formatoFechaLarga(fechaDesdeClave(p.fecha))}
-                          descripcion={`Hospital de ${p.hospital} · ${p.comidas.join(', ')}`}
-                          seleccionada={p.fecha === pedidoActual?.fecha}
-                          onPress={() => elegirPedido(p.fecha)}
-                        />
-                      ))}
-                    </View>
-                  )}
-                </EstadoCarga>
+                {modificables.length === 0 ? (
+                  <View style={styles.vacioCaja}>
+                    <Text style={styles.vacio}>No tienes pedidos que se puedan cambiar.</Text>
+                    <Pressable
+                      onPress={() => router.navigate('/becado/agendarPedido')}
+                      accessibilityRole="button"
+                      style={({ pressed }) => [styles.botonSecundario, pressed && styles.presionado]}
+                    >
+                      <Text style={styles.botonSecundarioTexto}>Agendar un pedido</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View style={styles.opciones} accessibilityRole="radiogroup">
+                    {modificables.map((p) => (
+                      <OpcionSeleccion
+                        key={p.fecha}
+                        titulo={formatoFechaLarga(fechaDesdeClave(p.fecha))}
+                        descripcion={[
+                          p.turno ? `${p.turno.nombre} · ${horarioTurno(p.turno)}` : null,
+                          `Hospital de ${p.hospital} · ${nombres(p.comidas.map((c) => c.tipoComida))}`,
+                        ]
+                          .filter(Boolean)
+                          .join('\n')}
+                        seleccionada={p.fecha === pedidoActual?.fecha}
+                        onPress={() => elegirPedido(p.fecha)}
+                      />
+                    ))}
+                  </View>
+                )}
               </Paso>
 
               {/* Paso 2: hospital */}
@@ -377,11 +314,11 @@ export default function CambiarPedidoScreen() {
                 bloqueado={pedidoActual === null}
                 completo={cambiaHospital}
               >
-                {base.hospitales.length === 0 ? (
+                {datos.hospitales.length === 0 ? (
                   <Text style={styles.vacio}>No hay hospitales disponibles.</Text>
                 ) : (
                   <View style={styles.opciones} accessibilityRole="radiogroup">
-                    {base.hospitales.map((h) => (
+                    {datos.hospitales.map((h) => (
                       <OpcionSeleccion
                         key={h.id}
                         titulo={`Hospital de ${h.nombre}`}
@@ -394,58 +331,73 @@ export default function CambiarPedidoScreen() {
                 )}
               </Paso>
 
-              {/* Paso 3: ¿cambiar la fecha? */}
+              {/* Paso 3: turno */}
               <Paso
                 numero={3}
-                titulo="¿Cambiar la fecha?"
-                ayuda={`Turnos disponibles para ${residente.especialidad}. Elige «Mantener» si solo quieres cambiar el hospital.`}
+                titulo="Seleccionar turno"
+                ayuda={`Turnos disponibles para ${datos.residente.especialidad}. Si cambias el turno, recibes sus comidas.`}
                 bloqueado={pedidoActual === null}
-                completo={turno !== null}
+                completo={cambiaTurno}
+              >
+                {pedidoActual && !turnoActualOfrecido && (
+                  <Text style={styles.aviso}>
+                    El turno de este pedido ya no se ofrece. Puedes dejarlo como está o elegir otro; para mover el
+                    pedido de día tendrás que elegir un turno de la lista.
+                  </Text>
+                )}
+                {datos.turnosDisponibles.length === 0 ? (
+                  <Text style={styles.vacio}>No hay turnos disponibles para {datos.residente.especialidad}.</Text>
+                ) : (
+                  <View style={styles.opciones} accessibilityRole="radiogroup">
+                    {datos.turnosDisponibles.map((t) => (
+                      <OpcionSeleccion
+                        key={t.id}
+                        titulo={t.nombre}
+                        descripcion={describirTurno(t, t.id === turnoActualId)}
+                        seleccionada={t.id === turnoFinalId}
+                        onPress={() => elegirTurno(t.id)}
+                      />
+                    ))}
+                  </View>
+                )}
+              </Paso>
+
+              {/* Paso 4: fecha */}
+              <Paso
+                numero={4}
+                titulo="¿Cambiar la fecha?"
+                ayuda={`Anticipación mínima: ${horas} h. Primer día posible: ${formatoFechaLarga(primerDia)}.`}
+                bloqueado={pedidoActual === null}
+                completo={cambiaFecha}
               >
                 <View style={styles.opciones} accessibilityRole="radiogroup">
                   <OpcionSeleccion
                     titulo="Mantener la fecha"
                     descripcion={
-                      pedidoActual
-                        ? `Sigue el ${formatoFechaLarga(fechaDesdeClave(pedidoActual.fecha))}`
-                        : 'No cambia la fecha ni las comidas'
+                      motivoMantener
+                        ? `${capitalizar(motivoMantener)}: elige otra fecha.`
+                        : pedidoActual
+                          ? `Sigue el ${formatoFechaLarga(fechaDesdeClave(pedidoActual.fecha))}`
+                          : 'No cambia la fecha'
                     }
                     seleccionada={eleccionFecha === 'mantener'}
                     onPress={() => elegirOpcionFecha('mantener')}
                   />
-                  {turnos.map((t) => (
-                    <OpcionSeleccion
-                      key={t.tipo}
-                      titulo={`Pasar a ${t.nombre.toLowerCase()}`}
-                      descripcion={`${t.descripcion} · ${t.comidas.join(', ')}`}
-                      seleccionada={eleccionFecha === t.tipo}
-                      onPress={() => elegirOpcionFecha(t.tipo)}
-                    />
-                  ))}
+                  <OpcionSeleccion
+                    titulo="Elegir otra fecha"
+                    descripcion="Mueve el pedido a otro día"
+                    seleccionada={eleccionFecha === 'otra'}
+                    onPress={() => elegirOpcionFecha('otra')}
+                  />
                 </View>
-              </Paso>
 
-              {/* Paso 4: nueva fecha */}
-              <Paso
-                numero={4}
-                titulo="Seleccionar nueva fecha"
-                ayuda={
-                  turno
-                    ? `Anticipación mínima: ${horas} h. Primer día disponible: ${formatoFechaLarga(primerDia)}.`
-                    : 'Elige un turno en el paso anterior para cambiar la fecha.'
-                }
-                bloqueado={turno === null}
-                completo={fechaElegida !== null}
-              >
-                {turno && (
+                {eleccionFecha === 'otra' && (
                   <CalendarioReserva
                     anio={mesActual.anio}
                     mes={mesActual.mes}
-                    dias={dias}
-                    errorDias={errorDelMes}
+                    dias={diasCalendario}
+                    errorDias={errorDias}
                     onReintentar={recargarDias}
-                    tipoTurno={turno.tipo}
-                    momentoMinimo={momentoMinimo}
                     hoy={claveHoy}
                     seleccionada={fechaElegida}
                     onSeleccionar={elegirFecha}
@@ -465,29 +417,34 @@ export default function CambiarPedidoScreen() {
                     <View style={styles.resumenFila}>
                       <Text style={styles.resumenEtiqueta}>Hospital</Text>
                       <Text style={styles.resumenValor}>
-                        {hospitalActual?.nombre ?? pedidoActual.hospital} → {hospitalNuevo.nombre}
+                        {pedidoActual.hospital} → {hospitalNuevo.nombre}
                       </Text>
                     </View>
                   )}
 
-                  {cambiaFecha && turno && fechaElegida && (
+                  {cambiaTurno && turnoFinal && (
                     <>
                       <View style={styles.resumenFila}>
-                        <Text style={styles.resumenEtiqueta}>Fecha</Text>
+                        <Text style={styles.resumenEtiqueta}>Turno</Text>
                         <Text style={styles.resumenValor}>
-                          {formatoFechaLarga(fechaDesdeClave(pedidoActual.fecha))} →{' '}
-                          {formatoFechaLarga(fechaDesdeClave(fechaElegida))}
+                          {pedidoActual.turno?.nombre ?? 'Sin turno'} → {turnoFinal.nombre}
                         </Text>
                       </View>
                       <View style={styles.resumenFila}>
-                        <Text style={styles.resumenEtiqueta}>Turno</Text>
-                        <Text style={styles.resumenValor}>{turno.nombre}</Text>
-                      </View>
-                      <View style={styles.resumenFila}>
                         <Text style={styles.resumenEtiqueta}>Comidas</Text>
-                        <Text style={styles.resumenValor}>{turno.comidas.join(', ')}</Text>
+                        <Text style={styles.resumenValor}>{nombres(turnoFinal.comidas)}</Text>
                       </View>
                     </>
+                  )}
+
+                  {fechaElegida && (
+                    <View style={styles.resumenFila}>
+                      <Text style={styles.resumenEtiqueta}>Fecha</Text>
+                      <Text style={styles.resumenValor}>
+                        {formatoFechaLarga(fechaDesdeClave(pedidoActual.fecha))} →{' '}
+                        {formatoFechaLarga(fechaDesdeClave(fechaElegida))}
+                      </Text>
+                    </View>
                   )}
                 </View>
               )}
@@ -499,7 +456,7 @@ export default function CambiarPedidoScreen() {
               )}
 
               <Pressable
-                onPress={guardar}
+                onPress={() => void guardar()}
                 disabled={!puedeGuardar}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: !puedeGuardar, busy: guardando }}
@@ -538,6 +495,11 @@ const styles = StyleSheet.create({
   },
   vacioCaja: {
     gap: 10,
+  },
+  aviso: {
+    color: Colors.admin.ambar,
+    fontSize: 12,
+    lineHeight: 17,
   },
 
   /* Resumen */

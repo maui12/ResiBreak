@@ -14,6 +14,7 @@ import { InformesModule } from './informes/informes.module.js';
 import { PanelModule } from './panel/panel.module.js';
 import { PedidosModule } from './pedidos/pedidos.module.js';
 import { TurnosModule } from './turnos/turnos.module.js';
+import { TurnosDisponiblesModule } from './turnos-disponibles/turnos-disponibles.module.js';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { TurnosModule } from './turnos/turnos.module.js';
     BecadosModule,
     CalendarioModule,
     TurnosModule,
+    TurnosDisponiblesModule,
     PedidosModule,
     PanelModule,
     InformesModule,

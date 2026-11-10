@@ -1,74 +1,39 @@
-import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 
-import { mensajeDeError } from '@/api';
 import EstadoCarga from '@/components/EstadoCarga';
 import ScreenLayout from '@/components/ScreenLayout';
 import { MENU_RESIDENTE } from '@/constants/menus';
 import { Colors, Radios, Spacing } from '@/constants/theme';
-import { useAhora } from '@/hooks/use-ahora';
-import { useResidenteActual } from '@/hooks/use-becado';
-import {
-  obtenerPedidosProximosDias,
-  type PedidoResidente,
-} from '@/services/becados.service';
-import { claveFecha, diaCorto, fechaDesdeClave, formatoFechaLarga, inicioDelDia, mesCorto, sumarDias } from '@/utils/fechas';
+import { useDatosResidente } from '@/hooks/use-becado';
+import { NOMBRE_COMIDA, NOMBRE_ESTADO, type PedidoDia } from '@/services/becados.service';
+import { horarioTurno } from '@/utils/turnos';
+import { diaCorto, fechaDesdeClave, formatoFechaLarga, mesCorto, sumarDiasClave } from '@/utils/fechas';
 
 const DIAS_RESUMEN = 7;
 
 /** "Hoy", "Mañana" o "mié 28". */
 function etiquetaDia(clave: string, claveHoy: string): string {
   if (clave === claveHoy) return 'Hoy';
+  if (clave === sumarDiasClave(claveHoy, 1)) return 'Mañana';
   const fecha = fechaDesdeClave(clave);
-  if (clave === claveFecha(sumarDias(fechaDesdeClave(claveHoy), 1))) return 'Mañana';
   return `${diaCorto(fecha)} ${fecha.getDate()}`;
 }
 
 export default function PanelResidenteScreen() {
-  const { residente, cargando, error, recargar } = useResidenteActual();
-  const ahora = useAhora();
-  const claveHoy = claveFecha(inicioDelDia(ahora));
-  const residenteId = residente?.id;
+  const { datos, cargando, error, recargar } = useDatosResidente();
 
-  const [pedidos, setPedidos] = useState<PedidoResidente[] | null>(null);
-  const [errorPedidos, setErrorPedidos] = useState<string | null>(null);
-  const [intento, setIntento] = useState(0);
+  const claveHoy = datos?.hoy ?? null;
+  const fechas = claveHoy ? Array.from({ length: DIAS_RESUMEN }, (_, i) => sumarDiasClave(claveHoy, i)) : [];
+  const ultimaFecha = fechas[fechas.length - 1];
 
-  // Se vuelve a cargar cada vez que la pantalla gana el foco (por ejemplo, al volver de agendar).
-  useFocusEffect(
-    useCallback(() => {
-      if (residenteId === undefined) return;
-      let activo = true;
+  const pedidoPorFecha = new Map((datos?.pedidos ?? []).map((p): [string, PedidoDia] => [p.fecha, p]));
 
-      obtenerPedidosProximosDias(residenteId, fechaDesdeClave(claveHoy), DIAS_RESUMEN)
-        .then((datos) => {
-          if (!activo) return;
-          setPedidos(datos);
-          setErrorPedidos(null);
-        })
-        .catch((e: unknown) => {
-          if (activo) setErrorPedidos(mensajeDeError(e));
-        });
+  const pedidosSemana = (datos?.pedidos ?? []).filter((p) => ultimaFecha !== undefined && p.fecha <= ultimaFecha);
+  const totalComidas = pedidosSemana.reduce((total, p) => total + p.comidas.length, 0);
+  const proximo = pedidosSemana[0]?.fecha;
 
-      return () => {
-        activo = false;
-      };
-    }, [residenteId, claveHoy, intento]),
-  );
-
-  const reintentarPedidos = () => {
-    setErrorPedidos(null);
-    setIntento((n) => n + 1);
-  };
-
-  const dias = Array.from({ length: DIAS_RESUMEN }, (_, i) => sumarDias(fechaDesdeClave(claveHoy), i));
-  const pedidoPorFecha = new Map(
-    (pedidos ?? []).map((pedido): [string, PedidoResidente] => [pedido.fecha, pedido]),
-  );
-  const totalComidas = (pedidos ?? []).reduce((total, pedido) => total + pedido.comidas.length, 0);
-  const proximo = pedidos?.[0];
-  const iniciales = (residente?.nombre ?? '')
+  const iniciales = (datos?.residente.nombre ?? '')
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
@@ -79,7 +44,7 @@ export default function PanelResidenteScreen() {
     <ScreenLayout titulo="Resumen" subtitulo="Tus pedidos de los próximos 7 días" menu={MENU_RESIDENTE}>
       <View style={styles.contenido}>
         <EstadoCarga cargando={cargando} error={error} onReintentar={recargar}>
-          {residente && (
+          {datos && claveHoy && (
             <>
               {/* Residente */}
               <View style={styles.tarjetaResidente}>
@@ -88,115 +53,122 @@ export default function PanelResidenteScreen() {
                 </View>
                 <View style={styles.identidad}>
                   <Text style={styles.nombre} numberOfLines={1}>
-                    {residente.nombre}
+                    {datos.residente.nombre}
                   </Text>
                   <Text style={styles.detalleResidente} numberOfLines={2}>
-                    {residente.especialidad} · Hospital de {residente.hospital.nombre}
+                    {datos.residente.especialidad}
                   </Text>
                 </View>
               </View>
 
-              <EstadoCarga
-                cargando={pedidos === null && errorPedidos === null}
-                error={errorPedidos}
-                onReintentar={reintentarPedidos}
-              >
-                {/* Resumen numérico */}
-                <View style={styles.resumen}>
-                  <View style={styles.tarjetaResumen}>
-                    <Text style={styles.resumenEtiqueta}>Pedidos</Text>
-                    <Text style={styles.resumenNumero}>{pedidos?.length ?? 0}</Text>
-                    <Text style={styles.resumenDetalle}>Agendados</Text>
-                  </View>
-                  <View style={styles.tarjetaResumen}>
-                    <Text style={styles.resumenEtiqueta}>Comidas</Text>
-                    <Text style={styles.resumenNumero}>{totalComidas}</Text>
-                    <Text style={styles.resumenDetalle}>En total</Text>
-                  </View>
-                  <View style={styles.tarjetaResumen}>
-                    <Text style={styles.resumenEtiqueta}>Próximo</Text>
-                    <Text style={styles.resumenNumero} numberOfLines={1} adjustsFontSizeToFit>
-                      {proximo ? etiquetaDia(proximo.fecha, claveHoy) : '—'}
-                    </Text>
-                    <Text style={styles.resumenDetalle}>{proximo ? 'Pedido' : 'Sin pedidos'}</Text>
-                  </View>
+              {/* Resumen numérico */}
+              <View style={styles.resumen}>
+                <View style={styles.tarjetaResumen}>
+                  <Text style={styles.resumenEtiqueta}>Pedidos</Text>
+                  <Text style={styles.resumenNumero}>{pedidosSemana.length}</Text>
+                  <Text style={styles.resumenDetalle}>Agendados</Text>
                 </View>
+                <View style={styles.tarjetaResumen}>
+                  <Text style={styles.resumenEtiqueta}>Comidas</Text>
+                  <Text style={styles.resumenNumero}>{totalComidas}</Text>
+                  <Text style={styles.resumenDetalle}>En total</Text>
+                </View>
+                <View style={styles.tarjetaResumen}>
+                  <Text style={styles.resumenEtiqueta}>Próximo</Text>
+                  <Text style={styles.resumenNumero} numberOfLines={1} adjustsFontSizeToFit>
+                    {proximo ? etiquetaDia(proximo, claveHoy) : '—'}
+                  </Text>
+                  <Text style={styles.resumenDetalle}>{proximo ? 'Pedido' : 'Sin pedidos'}</Text>
+                </View>
+              </View>
 
-                {/* Lista por día */}
-                <Text style={styles.seccionTitulo} accessibilityRole="header">
-                  Próximos 7 días
-                </Text>
+              {/* Lista por día */}
+              <Text style={styles.seccionTitulo} accessibilityRole="header">
+                Próximos 7 días
+              </Text>
 
-                <View style={styles.lista}>
-                  {dias.map((dia) => {
-                    const clave = claveFecha(dia);
-                    const pedido = pedidoPorFecha.get(clave);
-                    const esHoy = clave === claveHoy;
-                    const repartido = pedido?.estado === 'Repartido';
+              <View style={styles.lista}>
+                {fechas.map((clave) => {
+                  const dia = fechaDesdeClave(clave);
+                  const pedido = pedidoPorFecha.get(clave);
+                  const turno = pedido?.turno ?? null;
+                  const esHoy = clave === claveHoy;
+                  const entregado = pedido?.estado === 'entregado';
+                  const nombresComidas = (pedido?.comidas ?? []).map((c) => NOMBRE_COMIDA[c.tipoComida]);
 
-                    return (
-                      <View
-                        key={clave}
-                        style={styles.fila}
-                        accessible
-                        accessibilityLabel={
-                          pedido
-                            ? `${formatoFechaLarga(dia)}: ${pedido.comidas.join(', ')}, ${pedido.estado}`
-                            : `${formatoFechaLarga(dia)}: sin pedido agendado`
-                        }
-                      >
-                        <View style={[styles.fecha, esHoy && styles.fechaHoy]}>
-                          <Text style={[styles.fechaDia, esHoy && styles.fechaDiaHoy]}>
-                            {diaCorto(dia).toUpperCase()}
-                          </Text>
-                          <Text style={styles.fechaNumero}>{dia.getDate()}</Text>
-                          <Text style={styles.fechaMes}>{mesCorto(dia)}</Text>
-                        </View>
+                  return (
+                    <View
+                      key={clave}
+                      style={styles.fila}
+                      accessible
+                      accessibilityLabel={
+                        pedido
+                          ? `${formatoFechaLarga(dia)}: ${turno ? `${turno.nombre}, ` : ''}Hospital de ${pedido.hospital}, ${nombresComidas.join(', ')}, ${NOMBRE_ESTADO[pedido.estado]}`
+                          : `${formatoFechaLarga(dia)}: sin pedido agendado`
+                      }
+                    >
+                      <View style={[styles.fecha, esHoy && styles.fechaHoy]}>
+                        <Text style={[styles.fechaDia, esHoy && styles.fechaDiaHoy]}>
+                          {diaCorto(dia).toUpperCase()}
+                        </Text>
+                        <Text style={styles.fechaNumero}>{dia.getDate()}</Text>
+                        <Text style={styles.fechaMes}>{mesCorto(dia)}</Text>
+                      </View>
 
-                        {pedido ? (
-                          <View style={styles.tarjetaPedido}>
-                            <View style={styles.pedidoCabecera}>
-                              <Text style={styles.pedidoHospital} numberOfLines={1}>
-                                Hospital de {pedido.hospital}
+                      {pedido ? (
+                        <View style={styles.tarjetaPedido}>
+                          <View style={styles.pedidoCabecera}>
+                            <Text style={styles.pedidoTurno} numberOfLines={1}>
+                              Hospital de {pedido.hospital}
+                            </Text>
+                            <View style={[styles.estado, entregado ? styles.estadoEntregado : styles.estadoPendiente]}>
+                              <Text
+                                style={[
+                                  styles.estadoTexto,
+                                  { color: entregado ? Colors.admin.celeste : Colors.admin.ambar },
+                                ]}
+                              >
+                                {NOMBRE_ESTADO[pedido.estado]}
                               </Text>
-                              <View style={[styles.estado, repartido ? styles.estadoRepartido : styles.estadoProgramado]}>
-                                <Text
-                                  style={[
-                                    styles.estadoTexto,
-                                    { color: repartido ? Colors.admin.celeste : Colors.admin.ambar },
-                                  ]}
-                                >
-                                  {pedido.estado}
+                            </View>
+                          </View>
+                          {turno && (
+                            <Text style={styles.detalleTurno}>
+                              {turno.nombre} · {horarioTurno(turno)}
+                            </Text>
+                          )}
+
+                          <View style={styles.comidas}>
+                            {pedido.comidas.map((comida) => (
+                              <View
+                                key={comida.id}
+                                style={[styles.comida, comida.estado === 'entregado' && styles.comidaEntregada]}
+                              >
+                                <Text style={styles.comidaTexto}>
+                                  {comida.estado === 'entregado' ? '✓ ' : ''}
+                                  {NOMBRE_COMIDA[comida.tipoComida]}
                                 </Text>
                               </View>
-                            </View>
-
-                            <View style={styles.comidas}>
-                              {pedido.comidas.map((comida) => (
-                                <View key={comida} style={styles.comida}>
-                                  <Text style={styles.comidaTexto}>{comida}</Text>
-                                </View>
-                              ))}
-                            </View>
+                            ))}
                           </View>
-                        ) : (
-                          <View style={[styles.tarjetaPedido, styles.tarjetaVacia]}>
-                            <Text style={styles.sinPedido}>Sin pedido agendado</Text>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
+                        </View>
+                      ) : (
+                        <View style={[styles.tarjetaPedido, styles.tarjetaVacia]}>
+                          <Text style={styles.sinPedido}>Sin pedido agendado</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
 
-                <Pressable
-                  onPress={() => router.navigate('/becado/agendarPedido')}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [styles.boton, pressed && styles.botonPresionado]}
-                >
-                  <Text style={styles.botonTexto}>Agendar un pedido</Text>
-                </Pressable>
-              </EstadoCarga>
+              <Pressable
+                onPress={() => router.navigate('/becado/agendarPedido')}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.boton, pressed && styles.botonPresionado]}
+              >
+                <Text style={styles.botonTexto}>Agendar un pedido</Text>
+              </Pressable>
             </>
           )}
         </EstadoCarga>
@@ -341,6 +313,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.admin.tarjeta,
   },
   tarjetaVacia: {
+    gap: 4,
     backgroundColor: 'transparent',
     borderStyle: 'dashed',
   },
@@ -354,21 +327,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  pedidoHospital: {
+  pedidoTurno: {
     flex: 1,
     color: Colors.white,
     fontSize: 13,
     fontWeight: '700',
+  },
+  detalleTurno: {
+    marginTop: -6,
+    color: Colors.admin.textoSuave,
+    fontSize: 11,
   },
   estado: {
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 999,
   },
-  estadoRepartido: {
+  estadoEntregado: {
     backgroundColor: Colors.admin.celesteFondo,
   },
-  estadoProgramado: {
+  estadoPendiente: {
     backgroundColor: Colors.admin.ambarFondo,
   },
   estadoTexto: {
@@ -385,6 +363,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  comidaEntregada: {
+    backgroundColor: Colors.admin.celesteFondo,
   },
   comidaTexto: {
     color: Colors.white,

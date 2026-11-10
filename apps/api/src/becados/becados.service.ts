@@ -1,57 +1,25 @@
-import { Injectable, Logger, NotFoundException, type OnApplicationBootstrap } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { MesQueryDto } from '../common/dto/mes-query.dto.js';
 import { rangoMes } from '../common/fechas.js';
-import { Hospital } from '../hospitales/hospital.entity.js';
 import { Pedido } from '../pedidos/pedido.entity.js';
 import { Turno } from '../turnos/turno.entity.js';
 import { Becado } from './becado.entity.js';
 import type { ActualizarBecadoDto } from './dto/actualizar-becado.dto.js';
 import type { CrearBecadoDto } from './dto/crear-becado.dto.js';
-
-/** RUT del residente de prueba (válido). La app móvil lo busca por este RUT en el login de demostración. */
-export const RUT_RESIDENTE_DEMO = '11111111-1';
+import { Usuario } from '../auth/usuario.entity.js';
 
 @Injectable()
-export class BecadosService implements OnApplicationBootstrap {
-  private readonly logger = new Logger(BecadosService.name);
-
+export class BecadosService {
   constructor(
-    private readonly config: ConfigService,
-    @InjectRepository(Hospital) private readonly hospitales: Repository<Hospital>,
     @InjectRepository(Becado) private readonly repo: Repository<Becado>,
     @InjectRepository(Turno) private readonly turnos: Repository<Turno>,
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
+    @InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
   ) {}
 
-  /**
-   * Crea un residente de prueba si SEED_DEMO=true. Se hace en onApplicationBootstrap (y no en
-   * onModuleInit) para que los hospitales iniciales ya existan. Nunca corre en producción.
-   */
-  async onApplicationBootstrap() {
-    if (this.config.get<string>('SEED_DEMO') !== 'true') return;
-    if (process.env.NODE_ENV === 'production') {
-      this.logger.warn('SEED_DEMO se ignora porque NODE_ENV=production.');
-      return;
-    }
-    if (await this.repo.existsBy({ rut: RUT_RESIDENTE_DEMO })) return;
-
-    const hospital =
-      (await this.hospitales.find({ order: { id: 'ASC' }, take: 1 }))[0] ??
-      (await this.hospitales.save(this.hospitales.create({ nombre: 'Ovalle' })));
-    await this.repo.save(
-      this.repo.create({
-        nombre: 'Residente de Prueba',
-        rut: RUT_RESIDENTE_DEMO,
-        especialidad: 'Medicina Interna',
-        hospitalId: hospital.id,
-      }),
-    );
-    this.logger.log(`Residente de prueba creado (RUT ${RUT_RESIDENTE_DEMO})`);
-  }
-
+  
   /** Becados activos con su resumen del mes (la forma que usa la pantalla "Becados"). */
   async listarConResumen(q: MesQueryDto) {
     const { desde, hasta } = rangoMes(q.anio, q.mes);
@@ -84,7 +52,6 @@ export class BecadosService implements OnApplicationBootstrap {
       nombre: b.nombre,
       rut: b.rut,
       especialidad: b.especialidad,
-      hospital: b.hospital.nombre,
       turnos: Number(t.get(b.id)?.turnos ?? 0),
       turnosLargos: Number(t.get(b.id)?.largos ?? 0),
       comidas: Number(p.get(b.id)?.comidas ?? 0),
@@ -105,14 +72,15 @@ export class BecadosService implements OnApplicationBootstrap {
 
   async actualizar(id: number, dto: ActualizarBecadoDto) {
     const becado = await this.obtener(id);
-    // hospital viene cargado (eager); se quita para que TypeORM use hospitalId al guardar
-    const { hospital: _hospital, ...resto } = becado;
-    return this.repo.save({ ...resto, ...dto });
+    return this.repo.save({ ...becado, ...dto });
   }
 
-  /** No se borra: se desactiva, así el historial de turnos y pedidos se conserva. */
+  /** No se borra: se desactiva (y su cuenta también), así el historial se conserva. */
   async desactivar(id: number) {
     await this.obtener(id);
     await this.repo.update({ id }, { activo: false });
+    await this.usuarios.update({ becadoId: id }, { activo: false });
   }
 }
+
+

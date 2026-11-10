@@ -12,6 +12,7 @@ import {
 import { router, usePathname, type Href } from 'expo-router';
 import { Colors, Radios, Spacing } from '@/constants/theme';
 import { MENU_ADMIN, type MenuSidebar } from '@/constants/menus';
+import { cerrarSesion } from '@/sesion';
 
 type SidebarProps = {
   visible: boolean;
@@ -42,6 +43,12 @@ export default function Sidebar({ visible, onClose, menu = MENU_ADMIN }: Sidebar
     if (pathname !== ruta) {
       router.navigate(ruta as Href);
     }
+  }
+
+  function salir() {
+    onClose();
+    cerrarSesion();
+    router.replace('/login');
   }
 
   function esActiva(ruta: string) {
@@ -156,6 +163,13 @@ export default function Sidebar({ visible, onClose, menu = MENU_ADMIN }: Sidebar
             <View style={styles.pie}>
               <View style={styles.puntoEstado} />
               <Text style={styles.pieTexto}>Sistema de gestión</Text>
+              <Pressable
+                onPress={salir}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.salir, pressed && styles.opcionPresionada]}
+              >
+                <Text style={styles.salirTexto}>Cerrar sesión</Text>
+              </Pressable>
             </View>
           </SafeAreaView>
         </Animated.View>
@@ -324,7 +338,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.admin.verde,
   },
   pieTexto: {
+    flex: 1,
     fontSize: 12,
     color: Colors.ucnBlue,
+  },
+  salir: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radios.sm,
+    borderWidth: 1,
+    borderColor: Colors.ucnOrange,
+  },
+  salirTexto: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.ucnOrange,
   },
 });

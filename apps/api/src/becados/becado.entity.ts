@@ -1,6 +1,9 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { Hospital } from '../hospitales/hospital.entity.js';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
+/**
+ * Ficha del becado (residente). No tiene un hospital fijo: el hospital se elige en cada pedido
+ * (ver Pedido.hospitalId).
+ */
 @Entity('becados')
 export class Becado {
   @PrimaryGeneratedColumn()
@@ -9,6 +12,7 @@ export class Becado {
   @Column({ type: 'varchar', length: 120 })
   nombre: string;
 
+  /** RUT normalizado (12345678-5). Nullable solo para las fichas creadas antes de este campo. */
   @Column({ type: 'varchar', length: 12, unique: true, nullable: true })
   rut: string | null;
 
@@ -17,12 +21,4 @@ export class Becado {
 
   @Column({ type: 'boolean', default: true })
   activo: boolean;
-
-  @Index()
-  @Column({ type: 'int' })
-  hospitalId: number;
-
-  @ManyToOne(() => Hospital, { eager: true, onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'hospitalId' })
-  hospital: Hospital;
 }

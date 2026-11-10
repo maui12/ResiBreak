@@ -19,19 +19,19 @@ export class BecadosController {
     return this.becados.obtener(id);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @Post()
   crear(@Body() dto: CrearBecadoDto) {
     return this.becados.crear(dto);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @Patch(':id')
   actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarBecadoDto) {
     return this.becados.actualizar(id, dto);
   }
 
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN,Rol.CONSULTA)
   @HttpCode(204)
   @Delete(':id')
   desactivar(@Param('id', ParseIntPipe) id: number) {

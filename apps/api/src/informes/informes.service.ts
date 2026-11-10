@@ -16,31 +16,35 @@ export class InformesService {
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
   ) {}
 
-  /** Turnos, comidas y monto por hospital en un rango de fechas (semanal, mensual o anual). */
+  /**
+   * Turnos, comidas y monto por hospital en un rango de fechas (los pedidos cancelados no cuentan).
+   * El hospital es el de entrega de cada pedido (los becados no tienen hospital fijo); un turno se
+   * cuenta en el hospital de sus comidas, así que los turnos sin comidas no aparecen en ningún hospital.
+   */
   async porHospital(q: InformeQueryDto) {
     const dias = (Date.parse(q.hasta) - Date.parse(q.desde)) / 86_400_000;
     if (dias < 0) throw new BadRequestException('"desde" no puede ser posterior a "hasta"');
     if (dias > MAX_DIAS) throw new BadRequestException(`El rango no puede superar ${MAX_DIAS} días`);
 
-    const params = { desde: q.desde, hasta: q.hasta };
+    const params = { desde: q.desde, hasta: q.hasta, cancelado: 'cancelado' };
     const [hospitales, filasTurnos, filasPedidos] = await Promise.all([
       this.hospitales.find({ order: { nombre: 'ASC' } }),
       this.turnos
         .createQueryBuilder('t')
-        .innerJoin('t.becado', 'b')
-        .select('b.hospitalId', 'hospitalId')
-        .addSelect('COUNT(*)', 'turnos')
+        .innerJoin(Pedido, 'p', 'p.becadoId = t.becadoId AND p.fecha = t.fecha AND p.estado <> :cancelado')
+        .select('p.hospitalId', 'hospitalId')
+        .addSelect('COUNT(DISTINCT t.id)', 'turnos')
         .where('t.fecha >= :desde AND t.fecha <= :hasta', params)
-        .groupBy('b.hospitalId')
+        .groupBy('p.hospitalId')
         .getRawMany<{ hospitalId: number; turnos: string }>(),
       this.pedidos
         .createQueryBuilder('p')
-        .innerJoin('p.becado', 'b')
-        .select('COALESCE(p.hospitalId, b.hospitalId)', 'hospitalId') // hospital de entrega del pedido
+        .select('p.hospitalId', 'hospitalId')
         .addSelect('COUNT(*)', 'comidas')
         .addSelect('COALESCE(SUM(p.valorUnitario), 0)', 'monto')
         .where('p.fecha >= :desde AND p.fecha <= :hasta', params)
-        .groupBy('COALESCE(p.hospitalId, b.hospitalId)')
+        .andWhere('p.estado <> :cancelado')
+        .groupBy('p.hospitalId')
         .getRawMany<{ hospitalId: number; comidas: string; monto: string }>(),
     ]);
 

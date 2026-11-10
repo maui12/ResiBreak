@@ -2,27 +2,32 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import EstadoCarga from '@/components/EstadoCarga';
 import { Colors, Radios, Spacing } from '@/constants/theme';
-import type { DiaAgendable, TipoTurno } from '@/services/becados.service';
 import {
   CABECERA_SEMANA,
   NOMBRES_MESES,
-  esFechaReservable,
   fechaDesdeClave,
   formatoFechaLarga,
   huecosInicioMes,
 } from '@/utils/fechas';
 
+/** Un día del mes tal como lo dibuja el calendario. La pantalla decide si se puede elegir. */
+export interface DiaCalendario {
+  fecha: string; // AAAA-MM-DD
+  dia: number;
+  feriado: boolean;
+  /** `null` si se puede elegir; si no, el motivo (se lee en voz alta con el lector de pantalla). */
+  motivoNoDisponible: string | null;
+  /** El residente ya tiene un pedido ese día. */
+  conPedido: boolean;
+}
+
 type CalendarioReservaProps = {
   anio: number;
   mes: number; // 1 a 12
   /** Días del mes; `null` mientras se cargan. */
-  dias: DiaAgendable[] | null;
+  dias: DiaCalendario[] | null;
   errorDias: string | null;
   onReintentar: () => void;
-  /** Tipo de turno elegido: solo se pueden seleccionar días de ese tipo. */
-  tipoTurno: TipoTurno;
-  /** Primer instante agendable (ahora + anticipación mínima). */
-  momentoMinimo: Date;
   /** Fecha de hoy, AAAA-MM-DD. */
   hoy: string;
   seleccionada: string | null;
@@ -32,24 +37,12 @@ type CalendarioReservaProps = {
   puedeAvanzar: boolean;
 };
 
-/** Devuelve el motivo por el que un día no se puede elegir, o `null` si está disponible. */
-function motivoNoDisponible(dia: DiaAgendable, tipoTurno: TipoTurno, momentoMinimo: Date): string | null {
-  if (!esFechaReservable(dia.fecha, momentoMinimo)) return 'fuera del plazo de anticipación mínima';
-  if (dia.ocupado) return 'ya tienes un turno ese día';
-  if (dia.tipo !== tipoTurno) {
-    return tipoTurno === 'normal' ? 'es guardia de 24 horas' : 'es día hábil';
-  }
-  return null;
-}
-
 export default function CalendarioReserva({
   anio,
   mes,
   dias,
   errorDias,
   onReintentar,
-  tipoTurno,
-  momentoMinimo,
   hoy,
   seleccionada,
   onSeleccionar,
@@ -98,7 +91,11 @@ export default function CalendarioReserva({
         </View>
         <View style={styles.leyendaItem}>
           <View style={[styles.punto, { backgroundColor: Colors.admin.ambar }]} />
-          <Text style={styles.leyendaTexto}>Guardia 24 h</Text>
+          <Text style={styles.leyendaTexto}>Feriado</Text>
+        </View>
+        <View style={styles.leyendaItem}>
+          <View style={[styles.punto, { backgroundColor: Colors.admin.verde }]} />
+          <Text style={styles.leyendaTexto}>Con pedido</Text>
         </View>
         <View style={styles.leyendaItem}>
           <View style={[styles.punto, { backgroundColor: Colors.admin.textoSuave }]} />
@@ -122,12 +119,13 @@ export default function CalendarioReserva({
             ))}
 
             {(dias ?? []).map((dia) => {
-              const motivo = motivoNoDisponible(dia, tipoTurno, momentoMinimo);
-              const disponible = motivo === null;
+              const disponible = dia.motivoNoDisponible === null;
               const esSeleccionado = dia.fecha === seleccionada;
               const esHoy = dia.fecha === hoy;
-              const es24h = dia.tipo === '24h';
               const nombreDia = formatoFechaLarga(fechaDesdeClave(dia.fecha));
+              const detalle = [dia.feriado ? 'feriado' : null, dia.conPedido ? 'con pedido' : null]
+                .filter(Boolean)
+                .join(', ');
 
               return (
                 <View key={dia.fecha} style={styles.celdaContenedor}>
@@ -135,11 +133,15 @@ export default function CalendarioReserva({
                     onPress={() => onSeleccionar(dia.fecha)}
                     disabled={!disponible}
                     accessibilityRole="button"
-                    accessibilityLabel={disponible ? nombreDia : `${nombreDia}, no disponible: ${motivo}`}
+                    accessibilityLabel={
+                      disponible
+                        ? `${nombreDia}${detalle ? `, ${detalle}` : ''}`
+                        : `${nombreDia}, no disponible: ${dia.motivoNoDisponible}`
+                    }
                     accessibilityState={{ disabled: !disponible, selected: esSeleccionado }}
                     style={[
                       styles.celda,
-                      es24h && styles.celda24h,
+                      dia.feriado && styles.celdaFeriado,
                       esHoy && styles.celdaHoy,
                       esSeleccionado && styles.celdaSeleccionada,
                       !disponible && styles.celdaNoDisponible,
@@ -148,9 +150,10 @@ export default function CalendarioReserva({
                     <Text style={[styles.celdaNumero, !disponible && styles.celdaNumeroNoDisponible]}>
                       {dia.dia}
                     </Text>
-                    <Text style={[styles.celdaDetalle, es24h && { color: Colors.admin.ambar }]}>
-                      {es24h ? '24 h' : ''}
-                    </Text>
+                    <View style={styles.celdaPie}>
+                      <Text style={styles.celdaDetalle}>{dia.feriado ? 'Fer.' : ''}</Text>
+                      {dia.conPedido && <View style={styles.marcaPedido} />}
+                    </View>
                   </Pressable>
                 </View>
               );
@@ -243,7 +246,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     backgroundColor: Colors.admin.tarjeta,
   },
-  celda24h: {
+  celdaFeriado: {
     borderColor: Colors.admin.ambar,
     backgroundColor: Colors.admin.ambarFondo,
   },
@@ -271,9 +274,20 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textDecorationLine: 'line-through',
   },
+  celdaPie: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   celdaDetalle: {
-    color: Colors.admin.celeste,
+    color: Colors.admin.ambar,
     fontSize: 10,
     fontWeight: '600',
+  },
+  marcaPedido: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.admin.verde,
   },
 });

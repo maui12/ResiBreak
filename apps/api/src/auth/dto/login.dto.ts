@@ -1,8 +1,12 @@
-import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { normalizarRut } from '../../common/rut.js';
+import { EsRut } from '../../common/validators.js';
 
 export class LoginDto {
-  @IsEmail()
-  email: string;
+  @Transform(({ value }) => (typeof value === 'string' ? normalizarRut(value) : value))
+  @EsRut()
+  rut: string;
 
   @IsString()
   @IsNotEmpty()

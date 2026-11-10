@@ -15,6 +15,12 @@ interface SidebarProps {
 
 function Sidebar({ opciones = [] }: SidebarProps) {
   const [abierta, setAbierta] = useState(true);
+  const navigate = useNavigate();
+
+  function salir() {
+    cerrarSesion();
+    navigate('/login', { replace: true });
+  }
 
   return (
     <div className="sidebar-container">
