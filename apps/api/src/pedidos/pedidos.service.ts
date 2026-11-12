@@ -95,7 +95,7 @@ export class PedidosService {
     if (!r.affected) throw new NotFoundException('Pedido no encontrado');
   }
 
-  /** Cantidad y total en pesos por tipo de comida (siempre devuelve los cuatro tipos). */
+  /** Cantidad y total en pesos por tipo de comida, sin los cancelados (siempre devuelve los cuatro tipos). */
   async contabilidad(q: MesQueryDto) {
     const { desde, hasta } = rangoMes(q.anio, q.mes);
     const filas = await this.repo
@@ -104,6 +104,7 @@ export class PedidosService {
       .addSelect('COUNT(*)', 'cantidad')
       .addSelect('COALESCE(SUM(p.valorUnitario), 0)', 'total')
       .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta })
+      .andWhere('p.estado <> :cancelado', { cancelado: 'cancelado' })
       .groupBy('p.tipoComida')
       .getRawMany<{ tipo: TipoComida; cantidad: string; total: string }>();
 

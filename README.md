@@ -284,10 +284,10 @@ Cancela todas las comidas del día y libera el día. `400` si no cumple la antic
 |---|---|---|---|
 | GET | `/hospitales` | admin, consulta, residente | `[{ id, nombre }]` |
 | POST | `/hospitales` | admin, consulta | `{ nombre }` |
-| GET | `/configuracion` | admin | `maxTurnosMes`, `anticipacionMinimaHoras`, `hospitalActivo`, costos de cada comida |
-| PUT | `/configuracion` | admin, consulta | Actualiza esos campos |
-| GET | `/becados?anio&mes` | admin | Becados activos con su resumen del mes: `id, nombre, rut, especialidad, turnos, turnosLargos, comidas, monto, tiposComida` |
-| GET | `/becados/:id` | admin | Un becado |
+| GET | `/configuracion` | admin, consulta | `maxTurnosMes`, `anticipacionMinimaHoras`, `hospitalActivo` (sin uso), costos de cada comida y `actualizadoEn` |
+| PUT | `/configuracion` | admin | Cambia solo los campos enviados (al menos uno). Rige de inmediato para todo el sistema |
+| GET | `/becados?anio&mes` | admin, consulta | Becados activos con su resumen del mes: `id, nombre, rut, especialidad, turnos, turnosLargos, comidas, monto, tiposComida`. No cuenta los pedidos cancelados |
+| GET | `/becados/:id` | admin, consulta | Un becado |
 | POST | `/becados` | admin, consulta | `{ nombre, rut, especialidad }` |
 | PATCH | `/becados/:id` | admin, consulta | Modifica datos |
 | DELETE | `/becados/:id` | admin, consulta | Desactiva el becado y su cuenta. `204` |
@@ -300,7 +300,7 @@ Cancela todas las comidas del día y libera el día. `400` si no cumple la antic
 | POST | `/pedidos` | admin, consulta | `{ becadoId, fecha, comidas, hospitalId }` (**`hospitalId` ahora es obligatorio**) |
 | PATCH | `/pedidos/estado` | admin, consulta | `{ becadoId, fecha, estado }` con `pendiente`, `entregado` o `cancelado` |
 | DELETE | `/pedidos/:id` | admin, consulta | Elimina una comida. `204` |
-| GET | `/panel/resumen?anio&mes` | admin, consulta | Resumen del mes para el panel |
+| GET | `/panel/resumen?anio&mes` | admin, consulta | `gastoMes`, `comidasProgramadas`, `comidasRepartidas`, `becadosActivos`, `becadosSobreLimite`, `maxTurnosMes`, `comidasPorEspecialidad`, `contabilidad`. No cuenta los pedidos cancelados |
 | GET | `/informes/hospitales?desde&hasta` | admin, consulta | `[{ hospital, turnos, comidas, monto }]` por hospital de entrega |
 
 **Endpoints que ya no existen:** `PUT /turnos/reprogramar` (reemplazado por `PUT /residente/pedidos/reprogramar`),

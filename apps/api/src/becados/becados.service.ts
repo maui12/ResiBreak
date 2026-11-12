@@ -41,6 +41,7 @@ export class BecadosService {
       .addSelect('COALESCE(SUM(p.valorUnitario), 0)', 'monto')
       .addSelect('COUNT(DISTINCT p.tipoComida)', 'tipos')
       .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta })
+      .andWhere('p.estado <> :cancelado', { cancelado: 'cancelado' }) // lo cancelado no es comida ni gasto
       .groupBy('p.becadoId')
       .getRawMany<{ becadoId: number; comidas: string; monto: string; tipos: string }>();
 

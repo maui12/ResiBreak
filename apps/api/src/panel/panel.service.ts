@@ -24,11 +24,24 @@ export class PanelService {
     const { desde, hasta } = rangoMes(q.anio, q.mes);
     const config = await this.configuracion.obtener();
 
+    // Los pedidos cancelados no son gasto ni comidas: se excluyen de todas las métricas.
     const pedidosMes = () =>
-      this.pedidos.createQueryBuilder('p').where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta });
+      this.pedidos
+        .createQueryBuilder('p')
+        .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta })
+        .andWhere('p.estado <> :cancelado', { cancelado: 'cancelado' });
 
-    const [gasto, comidasRepartidas, becadosActivos, sobreLimite, porEspecialidad, contabilidad] = await Promise.all([
+    const [
+      gasto,
+      comidasProgramadas,
+      comidasRepartidas,
+      becadosActivos,
+      sobreLimite,
+      porEspecialidad,
+      contabilidad,
+    ] = await Promise.all([
       pedidosMes().select('COALESCE(SUM(p.valorUnitario), 0)', 'total').getRawOne<{ total: string }>(),
+      pedidosMes().getCount(),
       pedidosMes().andWhere('p.estado = :estado', { estado: 'entregado' }).getCount(),
       this.becados.countBy({ activo: true }),
       // El tope es una alerta, no un bloqueo: se cuentan los becados que lo superan.
@@ -51,6 +64,7 @@ export class PanelService {
 
     return {
       gastoMes: Number(gasto?.total ?? 0),
+      comidasProgramadas,
       comidasRepartidas,
       becadosActivos,
       becadosSobreLimite: sobreLimite.length,

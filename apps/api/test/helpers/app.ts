@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { Usuario } from '../../src/auth/usuario.entity.js';
 import { AppModule } from '../../src/app.module.js';
 import { Becado } from '../../src/becados/becado.entity.js';
+import { Configuracion } from '../../src/configuracion/configuracion.entity.js';
 import { configurarApp } from '../../src/configurar-app.js';
 import { Pedido } from '../../src/pedidos/pedido.entity.js';
 import { Turno } from '../../src/turnos/turno.entity.js';
@@ -26,6 +27,8 @@ export async function limpiarDatos(app: INestApplication) {
   await ds.getRepository(Turno).createQueryBuilder().delete().execute();
   await ds.getRepository(Usuario).createQueryBuilder().delete().where(`rol <> 'admin'`).execute();
   await ds.getRepository(Becado).createQueryBuilder().delete().execute();
+  // Vuelve a los valores por defecto (se recrea sola en la próxima lectura).
+  await ds.getRepository(Configuracion).createQueryBuilder().delete().execute();
 }
 
 export async function login(app: INestApplication, rut: string, password: string): Promise<string> {

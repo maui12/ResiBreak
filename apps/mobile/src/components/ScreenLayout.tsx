@@ -36,6 +36,8 @@ export default function ScreenLayout({
         contentContainerStyle={styles.contenido}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        // iOS: deja espacio para el teclado (por ejemplo, en los campos de Configuración)
+        automaticallyAdjustKeyboardInsets
       >
         {children}
       </ScrollView>
