@@ -10,12 +10,13 @@ import type { ActualizarBecadoDto } from './dto/actualizar-becado.dto.js';
 import type { CrearBecadoDto } from './dto/crear-becado.dto.js';
 import { Usuario } from '../auth/usuario.entity.js';
 
-@InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
+@Injectable()
 export class BecadosService {
   constructor(
     @InjectRepository(Becado) private readonly repo: Repository<Becado>,
     @InjectRepository(Turno) private readonly turnos: Repository<Turno>,
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
+    @InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
   ) {}
 
   
@@ -74,7 +75,7 @@ export class BecadosService {
     // hospital viene cargado (eager); se quita para que TypeORM use hospitalId al guardar
     const { hospital: _hospital, ...resto } = becado;
     const guardado = await this.repo.save({ ...resto, ...dto });
-    if (dto.hospitalId !== undefined && dto.hospitalId !== becado.hospitalId) {
+    if (dto.hospitalId !== undefined && dto.hospitalId !== becado.hospital.id) {
       await this.usuarios.update({ becadoId: id }, { hospitalId: dto.hospitalId });
     }
     return guardado;
@@ -87,5 +88,3 @@ export class BecadosService {
     await this.usuarios.update({ becadoId: id }, { activo: false });
   }
 }
-
-

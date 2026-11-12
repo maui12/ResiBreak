@@ -8,6 +8,7 @@ import { rangoMes } from './../common/fechas.js';
 import { ConfiguracionService } from './../configuracion/configuracion.service.js';
 import type { CambiarEstadoDto, CrearPedidoDto, ListarPedidosQueryDto } from './dto/pedidos.dto.js';
 import { Pedido } from './pedido.entity.js';
+import { Hospital } from '../hospitales/hospital.entity.js';
 
 @Injectable()
 export class PedidosService {
@@ -34,7 +35,7 @@ export class PedidosService {
   }
 
   /** Pedidos del mes agrupados por becado y día (la forma que usa la pantalla "Pedidos"). */
-  async listar(q: ListarPedidosQueryDto) {
+  async listar(q: ListarPedidosQueryDto): {
     const { desde, hasta } = rangoMes(q.anio, q.mes);
     const qb = this.repo
       .createQueryBuilder('p')
@@ -46,6 +47,19 @@ export class PedidosService {
     const filas = await qb.orderBy('p.fecha', 'ASC').addOrderBy('b.nombre', 'ASC').getMany();
 
     const PRIORIDAD: Record<EstadoPedido, number> = { pendiente: 3, entregado: 2, cancelado: 1 };
+
+    interface PedidoDelDia {
+      becadoId: number;
+      becado: string;
+      hospital: string;
+      fecha: string;
+      dia: number;
+      comidas: TipoComida[];
+      estado: EstadoPedido;
+    }
+
+    const grupos = new Map<string, PedidoDelDia>();
+
     for (const f of filas) {
       const clave = `${f.becadoId}|${f.fecha}`;
       const grupo = grupos.get(clave) ?? {
