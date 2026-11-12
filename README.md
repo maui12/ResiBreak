@@ -1,15 +1,18 @@
-# test
+# ResiBreak
+
+Sistema de gestión de la alimentación de los becados (residentes): los residentes agendan sus pedidos de comida,
+la administración gestiona turnos, becados y costos, y el proveedor reparte.
+
 
 ## Estructura
 
-en carpeta apps/
-
-**web** = React + Vite
-
-**mobile** = React native + Expo
-
-**api** = backend, Nestjs
-
+```
+apps/
+  api/      backend compartido · NestJS + TypeORM + PostgreSQL + JWT
+  mobile/   app móvil · React Native + Expo (por ahora conectada: vistas del residente)
+  web/      página web · React + Vite (login y proveedor conectados; pantallas de admin aún con datos de prueba)
+  docker-compose.yml   bases de datos de desarrollo y de tests
+```
 
 ## Requisitos
 
