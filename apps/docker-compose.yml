@@ -1,25 +1,98 @@
+# ResiBreak con Docker Compose. Antes de levantar:
+#   1. cp apps/.env.example apps/.env            (credenciales de la BD, puerto del sitio)
+#   2. cp apps/api/.env.example apps/api/.env    (y ajustar para producción, ver más abajo)
+#
+# Desarrollo (solo la BD; la API y la web se corren con pnpm):
+#   docker compose -f apps/docker-compose.yml up -d db
+# Tests e2e:
+#   docker compose -f apps/docker-compose.yml --profile test up -d db_test
+# Marcha blanca / producción (BD + API + web):
+#   docker compose -f apps/docker-compose.yml up -d --build
+#
+# La BD y la API NO quedan expuestas a internet: la BD solo escucha en 127.0.0.1 del servidor y la
+# API solo es alcanzable por la red interna, a través de nginx (servicio web, ruta /api).
+name: resibreak
+
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: becados
-      POSTGRES_PASSWORD: becados
-      POSTGRES_DB: becados
+      POSTGRES_USER: ${DB_USER:?Falta DB_USER en apps/.env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en apps/.env}
+      POSTGRES_DB: ${DB_NAME:?Falta DB_NAME en apps/.env}
+      TZ: America/Santiago
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${DB_PUERTO_LOCAL:-5433}:5432" # solo para desarrollo local; no es público
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks: [interna]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   db_test:
-    image: postgres:16
+    image: postgres:16-alpine
+    profiles: [test]
     environment:
       POSTGRES_USER: becadozzz
       POSTGRES_PASSWORD: becadozzz
       POSTGRES_DB: becados_test
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5434:5432"
     tmpfs:
-    - /var/lib/postgresql/data
+      - /var/lib/postgresql/data # se borra al detenerla
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file: ./api/.env
+    environment:
+      # Lo que depende de Compose se fija aquí (pisa lo de api/.env).
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SYNC: "false"
+      DB_MIGRAR: "true"
+      TRUST_PROXY: 1
+      TZ: America/Santiago
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [interna]
+    # Sin "ports": solo nginx (servicio web) llega a la API.
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${WEB_PUERTO:-8080}:80" # poner HTTPS delante (proxy del servidor con certificado)
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [interna]
+    security_opt: ["no-new-privileges:true"]
+
 volumes:
   pgdata:
+
+networks:
+  interna:

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +12,9 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
+
+import { iniciarSesionConRut, mensajeDeLogin } from '../services/auth.service';
 
 import logoUCN from '../../../../apps/shared/assets/logoUCN.png';
 import logoFAMED from '../../../shared/assets/logoFAMED.png';
@@ -20,13 +24,28 @@ export default function Login() {
   const [contrasena, setContrasena] = useState('');
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
-  function handleSubmit() {
-    // Aquí conectaremos el formulario con el backend.
-    // No iniciar sesión ni navegar sin validar las credenciales.
-    console.log('Formulario de login preparado', {
-      usuario,
-      contrasenaIngresada: contrasena.length > 0,
-    });
+  const [error, setError] = useState('');
+  const [entrando, setEntrando] = useState(false);
+
+  async function handleSubmit() {
+    if (entrando) return;
+
+    if (!usuario.trim() || !contrasena) {
+      setError('Ingresa tu RUT y contraseña.');
+      return;
+    }
+
+    setError('');
+    setEntrando(true);
+    try {
+      const ruta = await iniciarSesionConRut(usuario, contrasena);
+      setContrasena('');
+      router.replace(ruta);
+    } catch (e) {
+      setError(mensajeDeLogin(e));
+    } finally {
+      setEntrando(false);
+    }
   }
 
   return (
@@ -75,19 +94,19 @@ export default function Login() {
 
             <View style={styles.form}>
               <View style={styles.field}>
-                <Text style={styles.label}>Usuario</Text>
+                <Text style={styles.label}>RUT</Text>
 
                 <TextInput
                   style={styles.input}
-                  placeholder="Ingresa tu RUT o correo"
+                  placeholder="Ej: 12.345.678-5"
                   placeholderTextColor="#999999"
                   value={usuario}
                   onChangeText={setUsuario}
-                  autoCapitalize="none"
+                  autoCapitalize="characters"
                   autoCorrect={false}
                   autoComplete="username"
                   textContentType="username"
-                  accessibilityLabel="Usuario"
+                  accessibilityLabel="RUT"
                   returnKeyType="next"
                 />
               </View>
@@ -108,7 +127,7 @@ export default function Login() {
                     textContentType="password"
                     accessibilityLabel="Contraseña"
                     returnKeyType="done"
-                    onSubmitEditing={handleSubmit}
+                    onSubmitEditing={() => void handleSubmit()}
                   />
 
                   <Pressable
@@ -134,13 +153,26 @@ export default function Login() {
                 style={({ pressed }) => [
                   styles.submitButton,
                   pressed && styles.submitButtonPressed,
+                  entrando && styles.submitButtonDisabled,
                 ]}
-                onPress={handleSubmit}
+                onPress={() => void handleSubmit()}
+                disabled={entrando}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: entrando, busy: entrando }}
               >
-                <Text style={styles.submitText}>Iniciar sesión</Text>
+                {entrando ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitText}>Iniciar sesión</Text>
+                )}
               </Pressable>
             </View>
+
+            {error !== '' && (
+              <Text style={styles.error} accessibilityRole="alert">
+                {error}
+              </Text>
+            )}
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>
@@ -282,10 +314,20 @@ const styles = StyleSheet.create({
   submitButtonPressed: {
     backgroundColor: '#925A2A',
   },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
   submitText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  error: {
+    marginTop: 16,
+    color: '#B3261E',
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   footer: {
     marginTop: 28,

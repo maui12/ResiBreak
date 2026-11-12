@@ -9,7 +9,7 @@ import type { HistorialQueryDto } from './dto/proveedor.dto.js';
 const DIAS_ADELANTE = 7; // hoy + los 7 días siguientes
 const MAX_DIAS_HISTORIAL = 366;
 
-interface ResumenDia {
+export interface ResumenDia {
   fecha: string;
   desayuno: number;
   almuerzo: number;
@@ -77,7 +77,7 @@ export class ProveedorService {
     const consulta = this.pedidos
       .createQueryBuilder('p')
       .innerJoinAndSelect('p.becado', 'b')
-      .innerJoinAndSelect('b.hospital', 'h')
+      .innerJoinAndSelect('p.hospital', 'h')
       .where('p.fecha = :dia', { dia })
       .andWhere('p.estado <> :cancelado', { cancelado: 'cancelado' });
     if (tipoComida) consulta.andWhere('p.tipoComida = :tipoComida', { tipoComida });
@@ -108,7 +108,7 @@ export class ProveedorService {
     const consulta = this.pedidos
       .createQueryBuilder('p')
       .innerJoinAndSelect('p.becado', 'b')
-      .innerJoinAndSelect('b.hospital', 'h')
+      .innerJoinAndSelect('p.hospital', 'h')
       .where('p.fecha BETWEEN :desde AND :hasta', { desde, hasta });
     if (q.tipoComida) consulta.andWhere('p.tipoComida = :tipoComida', { tipoComida: q.tipoComida });
     if (q.estado) consulta.andWhere('p.estado = :estado', { estado: q.estado });
@@ -156,7 +156,7 @@ export class ProveedorService {
       becado: {
         nombre: p.becado.nombre,
         especialidad: p.becado.especialidad,
-        hospital: p.becado.hospital.nombre,
+        hospital: p.hospital.nombre, // hospital de entrega de este pedido
       },
     };
   }

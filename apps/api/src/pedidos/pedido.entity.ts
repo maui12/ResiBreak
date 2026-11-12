@@ -1,5 +1,7 @@
 import { Check,Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
 import { Becado } from '../becados/becado.entity.js';
+import { Hospital } from '../hospitales/hospital.entity.js';
+import { TurnoDisponible } from '../turnos-disponibles/turno-disponible.entity.js';
 import type { EstadoPedido, TipoComida } from './../common/comidas.js';
 
 /** Una fila = una comida de un becado en un día. */
@@ -18,6 +20,27 @@ export class Pedido {
   @ManyToOne(() => Becado, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'becadoId' })
   becado: Becado;
+
+  /** Hospital al que se entrega la comida. Lo elige el residente en cada pedido. */
+  @Index()
+  @Column({ type: 'int' })
+  hospitalId: number;
+
+  @ManyToOne(() => Hospital, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'hospitalId' })
+  hospital: Hospital;
+
+  /**
+   * Turno que agendó el residente; de él salen las comidas del día. null en los pedidos que
+   * carga un administrador directamente (POST /pedidos) y en los anteriores a este campo.
+   */
+  @Index()
+  @Column({ type: 'int', nullable: true })
+  turnoDisponibleId: number | null;
+
+  @ManyToOne(() => TurnoDisponible, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'turnoDisponibleId' })
+  turnoDisponible: TurnoDisponible | null;
 
   @Index()
   @Column({ type: 'date' })

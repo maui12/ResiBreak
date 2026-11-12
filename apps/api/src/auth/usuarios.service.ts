@@ -23,7 +23,7 @@ export class UsuariosService {
       const becado = await this.becados.findOneBy({ id: dto.becadoId, activo: true });
       if (!becado) throw new NotFoundException('Becado no encontrado o inactivo');
       becadoId = becado.id;
-      hospitalId = becado.hospital.id; // el hospital siempre sale de la ficha del becado //puse su id, en caso de haber un error --> puede que sea esta linea :v
+      hospitalId = null; // los residentes no tienen hospital fijo: lo eligen en cada pedido
     } else if (dto.becadoId) {
       throw new BadRequestException('Solo las cuentas con rol residente se vinculan a un becado');
     }

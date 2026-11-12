@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { cerrarSesion } from '../../utils/sesion';
 import logoUCN from '../../../../shared/assets/logoUCN.png';
 import logoFAMED from '../../../../shared/assets/logoFAMED.png';
 import './Sidebar.css';
@@ -58,10 +59,14 @@ function Sidebar({ opciones = [] }: SidebarProps) {
               {opcion.label}
             </NavLink>
           ))}
+          <button type="button" className="sidebar-option sidebar-salir" onClick={salir}>
+            Cerrar sesión
+          </button>
         </nav>
       </aside>
 
       <button
+        type="button"
         className="sidebar-toggle"
         onClick={() => setAbierta(!abierta)}
         aria-label={abierta ? 'Cerrar menú' : 'Abrir menú'}

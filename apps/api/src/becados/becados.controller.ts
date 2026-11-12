@@ -9,29 +9,32 @@ import { CrearBecadoDto } from './dto/crear-becado.dto.js';
 export class BecadosController {
   constructor(private readonly becados: BecadosService) {}
 
+  /** GET /api/becados?anio&mes: becados activos con turnos, comidas y monto del mes. */
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get()
   listar(@Query() q: MesQueryDto) {
     return this.becados.listarConResumen(q);
   }
 
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get(':id')
-  obtener(@Param(':id', ParseIntPipe) id: number) {
+  obtener(@Param('id', ParseIntPipe) id: number) {
     return this.becados.obtener(id);
   }
 
-  @Roles(Rol.ADMIN,Rol.CONSULTA)
+  @Roles(Rol.ADMIN)
   @Post()
   crear(@Body() dto: CrearBecadoDto) {
     return this.becados.crear(dto);
   }
 
-  @Roles(Rol.ADMIN,Rol.CONSULTA)
+  @Roles(Rol.ADMIN)
   @Patch(':id')
   actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarBecadoDto) {
     return this.becados.actualizar(id, dto);
   }
 
-  @Roles(Rol.ADMIN,Rol.CONSULTA)
+  @Roles(Rol.ADMIN)
   @HttpCode(204)
   @Delete(':id')
   desactivar(@Param('id', ParseIntPipe) id: number) {

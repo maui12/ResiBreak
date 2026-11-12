@@ -7,18 +7,19 @@ import { TurnosService } from './turnos.service.js';
 export class TurnosController {
   constructor(private readonly turnos: TurnosService) {}
 
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get()
   listar(@Query() q: ListarTurnosQueryDto) {
     return this.turnos.listar(q);
   }
 
-  @Roles(Rol.ADMIN,Rol.CONSULTA)
+  @Roles(Rol.ADMIN)
   @Post()
   crear(@Body() dto: CrearTurnoDto) {
     return this.turnos.crear(dto);
   }
 
-  @Roles(Rol.ADMIN,Rol.CONSULTA)
+  @Roles(Rol.ADMIN)
   @HttpCode(204)
   @Delete(':id')
   eliminar(@Param('id', ParseIntPipe) id: number) {

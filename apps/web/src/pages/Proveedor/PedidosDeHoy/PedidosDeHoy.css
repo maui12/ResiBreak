@@ -283,3 +283,37 @@
     width: 100%;
   }
 }
+
+/* Mensajes de carga y error (conexión con la API) */
+.proveedor-error {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(228, 29, 59, 0.12);
+  color: #b0122b;
+}
+
+.proveedor-cargando {
+  margin: 0 0 16px;
+  opacity: 0.75;
+}
+
+.proveedor-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.proveedor-tabla {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.proveedor-tabla th,
+.proveedor-tabla td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}

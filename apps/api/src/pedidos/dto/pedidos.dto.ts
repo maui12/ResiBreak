@@ -14,6 +14,10 @@ export class CrearPedidoDto {
 
   @IsArray() @ArrayNotEmpty() @IsIn([...TIPOS_COMIDA], { each: true })
   comidas: TipoComida[];
+
+  /** Hospital de entrega (los becados no tienen hospital fijo). */
+  @IsInt() @Min(1)
+  hospitalId: number;
 }
 
 /** Marca como Repartido/Programado todas las comidas de un becado en un día. */

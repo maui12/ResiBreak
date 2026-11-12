@@ -1,38 +1,65 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Put, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { JwtPayload } from '../auth/jwt-payload.js';
+import { MesQueryDto } from '../common/dto/mes-query.dto.js';
 import { Rol, Roles } from '../common/roles.js';
 import { UsuarioActual } from '../common/usuario-actual.js';
-import { CrearPedidoResidenteDto, ListarPedidosResidenteQueryDto } from './dto/informe-query.dto.js';
-import { InformesService } from './informes.service.js';
+import {
+  AgendarPedidoDto,
+  CancelarPedidoDto,
+  ListarPedidosResidenteQueryDto,
+  ReprogramarPedidoDto,
+} from './dto/residente.dto.js';
+import { ResidenteService } from './residente.service.js';
 
+/** Rutas del residente (también disponibles como /api/portal/...). Quién es el residente sale siempre del token, nunca del cuerpo de la petición. */
 @Roles(Rol.RESIDENTE)
-@Controller('residente')
+@Controller(['residente', 'portal']) // /api/portal/resumen = /api/residente/resumen
 export class ResidenteController {
-  constructor(private readonly informes: InformesService) {}
+  constructor(private readonly residente: ResidenteService) {}
 
-  /** GET /api/residente/resumen: turno de hoy, próximos turnos y comidas de hoy. */
+  /** GET /api/residente/resumen: datos del residente, reglas, turno de hoy, próximos turnos y comidas de hoy. */
   @Get('resumen')
   resumen(@UsuarioActual() u: JwtPayload) {
-    return this.informes.resumen(u.becadoId);
+    return this.residente.resumen(u.becadoId);
+  }
+
+  /** GET /api/residente/turnos-disponibles: turnos que puede agendar según su especialidad. */
+  @Get('turnos-disponibles')
+  turnosDisponibles(@UsuarioActual() u: JwtPayload) {
+    return this.residente.turnosDisponiblesDe(u.becadoId);
+  }
+
+  /** GET /api/residente/calendario?anio&mes: tipo de cada día, feriados y si ya tiene turno o pedido. */
+  @Get('calendario')
+  calendario(@UsuarioActual() u: JwtPayload, @Query() q: MesQueryDto) {
+    return this.residente.calendario(u.becadoId, q);
   }
 
   /** GET /api/residente/pedidos?vista=proximos|historial */
   @Get('pedidos')
   listar(@UsuarioActual() u: JwtPayload, @Query() q: ListarPedidosResidenteQueryDto) {
-    return this.informes.listar(u.becadoId, q.vista);
+    return this.residente.listar(u.becadoId, q.vista);
   }
 
-  /** POST /api/residente/pedidos  { fecha, tipoComida } */
+  /** POST /api/residente/pedidos/agendar  { fecha, hospitalId, turnoDisponibleId } */
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  @Post('pedidos')
-  crear(@UsuarioActual() u: JwtPayload, @Body() dto: CrearPedidoResidenteDto) {
-    return this.informes.crear(u.becadoId, dto);
+  @Post('pedidos/agendar')
+  agendar(@UsuarioActual() u: JwtPayload, @Body() dto: AgendarPedidoDto) {
+    return this.residente.agendar(u.becadoId, dto);
   }
 
-  /** PATCH /api/residente/pedidos/:id/cancelar */
-  @Patch('pedidos/:id/cancelar')
-  cancelar(@UsuarioActual() u: JwtPayload, @Param('id', ParseIntPipe) id: number) {
-    return this.informes.cancelar(u.becadoId, id);
+  /** PUT /api/residente/pedidos/reprogramar  { fechaActual, fechaNueva?, hospitalId?, turnoDisponibleId? } */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Put('pedidos/reprogramar')
+  reprogramar(@UsuarioActual() u: JwtPayload, @Body() dto: ReprogramarPedidoDto) {
+    return this.residente.reprogramar(u.becadoId, dto);
+  }
+
+  /** PATCH /api/residente/pedidos/cancelar  { fecha, motivo? }: cancela el pedido del día y avisa a administración. */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Patch('pedidos/cancelar')
+  cancelar(@UsuarioActual() u: JwtPayload, @Body() dto: CancelarPedidoDto) {
+    return this.residente.cancelar(u.becadoId, dto.fecha, dto.motivo);
   }
 }

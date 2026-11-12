@@ -1,34 +1,22 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import helmet from 'helmet';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
-import { QueryFailedFilter } from './common/query-failed.filter.js';
-import { configurarApp } from './configurar-app.js';
+import { configurarApp, OPCIONES_APP } from './configurar-app.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, OPCIONES_APP);
   const config = app.get(ConfigService);
 
+  // Prefijo /api, helmet, CORS, límite del cuerpo, proxy, validación y filtro de errores.
+  // Debe ir ANTES de app.listen(): si no, las rutas quedan registradas sin prefijo ni validación.
+  configurarApp(app);
 
-  //Descomentar app. cuando termine de hacer los tests
-  //app.setGlobalPrefix('api');
-  //app.use(helmet());
-
-  // Solo los orígenes listados en CORS_ORIGINS (el web). La app móvil nativa no usa CORS.
-  const origenes = (config.get<string>('CORS_ORIGINS') ?? '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  app.enableCors({ origin: origenes });
-
-  //app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
-  //app.useGlobalFilters(new QueryFailedFilter());
   app.enableShutdownHooks();
 
   const puerto = Number(config.get('PORT') ?? 3000);
   await app.listen(puerto, config.get<string>('HOST') ?? '0.0.0.0');
-  Logger.log(`API escuchando en el puerto ${puerto}`, 'Bootstrap');
-  configurarApp(app);
+  Logger.log(`API escuchando en el puerto ${puerto} (prefijo /api)`, 'Bootstrap');
 }
 await bootstrap();

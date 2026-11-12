@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
 import { Rol } from '../common/roles.js';
 import { esRutValido, normalizarRut } from '../common/rut.js';
+import { LARGO_MINIMO_CLAVE } from './dto/usuario.dto.js';
 import type { JwtPayload } from './jwt-payload.js';
 import { Usuario } from './usuario.entity.js';
 
@@ -39,8 +40,8 @@ export class AuthService implements OnModuleInit {
       this.logger.error('ADMIN_RUT no es un RUT válido. No se creó el administrador.');
       return;
     }
-    if (password.length < 12) {
-      this.logger.error('ADMIN_PASSWORD debe tener al menos 12 caracteres. No se creó el administrador.');
+    if (password.length < LARGO_MINIMO_CLAVE) {
+      this.logger.error(`ADMIN_PASSWORD debe tener al menos ${LARGO_MINIMO_CLAVE} caracteres. No se creó el administrador.`);
       return;
     }
     const rut = normalizarRut(rutEnv);
@@ -50,7 +51,9 @@ export class AuthService implements OnModuleInit {
     this.logger.log('Administrador inicial creado');
   }
 
-  async login(rut: string, password: string) {
+  async login(rutIngresado: string, password: string) {
+    // El DTO ya normaliza ("12.345.678-5" -> "12345678-5"); se repite aquí por si se llama sin pasar por el DTO.
+    const rut = normalizarRut(rutIngresado);
     const usuario = await this.usuarios
       .createQueryBuilder('u')
       .addSelect('u.passwordHash')
@@ -81,16 +84,32 @@ export class AuthService implements OnModuleInit {
     return { accessToken, rol: usuario.rol, becadoId: usuario.becadoId, hospitalId: usuario.hospitalId };
   }
 
+  /**
+   * Suma un intento fallido con un UPDATE atómico (intentosFallidos + 1 en la propia BD).
+   * Así, varias peticiones simultáneas no pueden "pisar" el contador y saltarse el bloqueo.
+   * Al llegar a MAX_INTENTOS se bloquea la cuenta MINUTOS_BLOQUEO minutos y se reinicia el contador.
+   */
   private async registrarFallo(usuario: Usuario) {
-    const intentos = usuario.intentosFallidos + 1;
-    if (intentos >= MAX_INTENTOS) {
-      await this.usuarios.update(usuario.id, {
-        intentosFallidos: 0,
-        bloqueadoHasta: new Date(Date.now() + MINUTOS_BLOQUEO * 60_000),
-      });
+    const resultado = await this.usuarios
+      .createQueryBuilder()
+      .update(Usuario)
+      .set({ intentosFallidos: () => '"intentosFallidos" + 1' })
+      .where('id = :id', { id: usuario.id })
+      .returning(['intentosFallidos'])
+      .execute();
+
+    const intentos = Number((resultado.raw as { intentosFallidos: number }[])[0]?.intentosFallidos ?? 0);
+    if (intentos < MAX_INTENTOS) return;
+
+    // Solo bloquea quien llega primero al tope (la condición evita bloqueos dobles).
+    const bloqueo = await this.usuarios
+      .createQueryBuilder()
+      .update(Usuario)
+      .set({ intentosFallidos: 0, bloqueadoHasta: () => `now() + interval '${MINUTOS_BLOQUEO} minutes'` })
+      .where('id = :id AND "intentosFallidos" >= :max', { id: usuario.id, max: MAX_INTENTOS })
+      .execute();
+    if (bloqueo.affected) {
       this.logger.warn(`Cuenta bloqueada ${MINUTOS_BLOQUEO} min por intentos fallidos (usuario id=${usuario.id})`);
-    } else {
-      await this.usuarios.update(usuario.id, { intentosFallidos: intentos });
     }
   }
 }

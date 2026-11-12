@@ -1,11 +1,16 @@
 import { useState, type SyntheticEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {api, ApiError} from '../../../api/src/utils/api.js';
-import {cerrarSesion, guardarSesion} from '../../../api/src/utils/sesion.js';
-import { RUTA_INICIAL } from '../../../api/src/utils/roles.js';
+import { api, ApiError } from '../../utils/api';
+import { rutaInicial } from '../../utils/roles';
+import { cerrarSesion, guardarSesion } from '../../utils/sesion';
 import './Login.css';
-import logoUCN from "../../../../shared/assets/logoUCN.png";
-import logoFAMED from "../../../../shared/assets/logoFAMED.png";
+import logoUCN from '../../../../shared/assets/logoUCN.png';
+import logoFAMED from '../../../../shared/assets/logoFAMED.png';
+
+interface RespuestaLogin {
+  accessToken: string;
+  rol: string;
+}
 
 function Login() {
   const navigate = useNavigate();
@@ -16,25 +21,26 @@ function Login() {
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
 
-  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
     setCargando(true);
 
     try {
-      const { accessToken, rol } = await api<{ accessToken: string; rol: string }>(
-          '/auth/login',
-          {
-            method: 'POST',
-            // El backend espera exactamente { email, password }
-            body: JSON.stringify({ email: usuario.trim(), password: contrasena }),
-          },
-      );
+      // El backend espera { rut, password } y normaliza el RUT: acepta "12.345.678-5" o "12345678-5".
+      const { accessToken, rol } = await api<RespuestaLogin>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ rut: usuario.trim(), password: contrasena }),
+      });
 
-      const destino = RUTA_INICIAL[rol.toLowerCase()];
+      const destino = rutaInicial(rol);
       if (!destino) {
         cerrarSesion();
-        setError('Tu usuario no tiene una vista habilitada.');
+        setError(
+          rol === 'residente'
+            ? 'Los residentes ingresan desde la aplicación móvil.'
+            : 'Tu usuario no tiene una vista habilitada.',
+        );
         return;
       }
 
@@ -44,7 +50,6 @@ function Login() {
       setError(e instanceof ApiError ? e.message : 'Error inesperado');
     } finally {
       setCargando(false);
-    }
     }
   }
 
@@ -85,12 +90,12 @@ function Login() {
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-field">
-            <label htmlFor="usuario">Usuario</label>
+            <label htmlFor="usuario">RUT</label>
             <input
               id="usuario"
               name="usuario"
               type="text"
-              placeholder="Ingresa tu RUT o correo"
+              placeholder="Ej: 12.345.678-5"
               autoComplete="username"
               value={usuario}
               onChange={(event) => setUsuario(event.target.value)}

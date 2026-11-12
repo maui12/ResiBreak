@@ -1,7 +1,7 @@
 // Se ejecuta antes de cargar la app: ConfigModule lee estas variables.
 process.env.TZ = 'America/Santiago';
 process.env.DB_HOST ??= 'localhost';
-process.env.DB_PORT ??= '5433';
+process.env.DB_PORT ??= '5434'; // servicio db_test de apps/docker-compose.yml
 process.env.DB_USER ??= 'becadozzz';
 process.env.DB_PASSWORD ??= 'becadozzz';
 process.env.DB_NAME ??= 'becados_test';
@@ -14,3 +14,5 @@ process.env.ADMIN_PASSWORD = 'clave-admin-de-pruebas';
 if (!process.env.DB_NAME.endsWith('_test')) {
   throw new Error(`Los e2e solo corren contra una BD cuyo nombre termine en "_test" (actual: ${process.env.DB_NAME})`);
 }
+// Las pruebas simulan clientes distintos con X-Forwarded-For (como detrás de nginx).
+process.env.TRUST_PROXY = '1';

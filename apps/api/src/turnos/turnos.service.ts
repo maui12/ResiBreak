@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Becado } from '../becados/becado.entity.js';
 import { CalendarioService } from '../calendario/calendario.service.js';
+import { cumpleAnticipacion, hoyChile, mensajePlazo } from '../common/fecha-chile.js';
 import { rangoMes } from '../common/fechas.js';
 import { ConfiguracionService } from '../configuracion/configuracion.service.js';
 import type { CrearTurnoDto, ListarTurnosQueryDto } from './dto/crear-turno.dto.js';
@@ -31,15 +32,12 @@ export class TurnosService {
     const becado = await this.becados.findOneBy({ id: dto.becadoId, activo: true });
     if (!becado) throw new NotFoundException('Becado no encontrado o inactivo');
 
-    // Regla de anticipación: un turno futuro debe registrarse con al menos N horas de antelación.
-    // Las fechas pasadas se aceptan (registro histórico). Requiere TZ=America/Santiago en el servidor.
-    const config = await this.configuracion.obtener();
-    const inicio = new Date(`${dto.fecha}T00:00:00`).getTime();
-    const ahora = Date.now();
-    if (inicio > ahora && inicio < ahora + config.anticipacionMinimaHoras * 3_600_000) {
-      throw new BadRequestException(
-        `Los turnos futuros requieren al menos ${config.anticipacionMinimaHoras} h de anticipación`,
-      );
+    // Regla de anticipación (hora de Chile): un turno futuro se registra a más tardar a las 23:59
+    // del día anterior (con 1 día de anticipación). Las fechas de hoy hacia atrás se aceptan como
+    // registro histórico de lo que ya ocurrió.
+    const { anticipacionMinimaDias: dias } = await this.configuracion.obtener();
+    if (dto.fecha > hoyChile() && !cumpleAnticipacion(dto.fecha, dias)) {
+      throw new BadRequestException(`Los turnos futuros se registran ${mensajePlazo(dto.fecha, dias)}`);
     }
 
     // sábado, domingo o feriado => guardia de 24 h (lo decide el servidor, no el cliente)

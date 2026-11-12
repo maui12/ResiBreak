@@ -3,7 +3,7 @@ import './Configuracion.css';
 
 interface ConfiguracionForm {
   maxTurnosMes: number;
-  anticipacionMinimaHoras: number;
+  anticipacionMinimaDias: number;
   hospitalActivo: string;
   costoDesayuno: number;
   costoAlmuerzo: number;
@@ -19,7 +19,7 @@ const HOSPITALES = ['La Serena', 'Coquimbo', 'Ovalle'];
 // Valores de ejemplo (los del mockup). Más adelante vendrán del backend: GET /configuracion
 const CONFIGURACION_INICIAL: ConfiguracionForm = {
   maxTurnosMes: 6,
-  anticipacionMinimaHoras: 24,
+  anticipacionMinimaDias: 1,
   hospitalActivo: 'Ovalle',
   costoDesayuno: 4200,
   costoAlmuerzo: 6500,
@@ -53,8 +53,8 @@ function Configuracion() {
       setError('El máximo de turnos por mes debe ser al menos 1.');
       return;
     }
-    if (form.anticipacionMinimaHoras < 0) {
-      setError('La anticipación mínima no puede ser negativa.');
+    if (form.anticipacionMinimaDias < 0 || form.anticipacionMinimaDias > 30) {
+      setError('La anticipación mínima debe estar entre 0 y 30 días.');
       return;
     }
     if ([form.costoDesayuno, form.costoAlmuerzo, form.costoOnce, form.costoCena].some((c) => c < 0)) {
@@ -99,15 +99,16 @@ function Configuracion() {
           </div>
 
           <div className="config-campo">
-            <label htmlFor="anticipacion">Anticipación mínima (horas)</label>
+            <label htmlFor="anticipacion">Anticipación mínima (días)</label>
             <input
               id="anticipacion"
               type="number"
               min={0}
-              value={form.anticipacionMinimaHoras}
-              onChange={actualizarNumero('anticipacionMinimaHoras')}
+              max={30}
+              value={form.anticipacionMinimaDias}
+              onChange={actualizarNumero('anticipacionMinimaDias')}
             />
-            <small>Tiempo mínimo entre asignar un turno y que comience.</small>
+            <small>Con 1, el becado puede agendar, cambiar o cancelar hasta las 23:59 del día anterior (hora de Chile).</small>
           </div>
 
           <div className="config-campo">

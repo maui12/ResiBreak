@@ -6,9 +6,21 @@ import { CAMPO_COSTO, TIPOS_COMIDA, type EstadoPedido, type TipoComida } from '.
 import type { MesQueryDto } from './../common/dto/mes-query.dto.js';
 import { rangoMes } from './../common/fechas.js';
 import { ConfiguracionService } from './../configuracion/configuracion.service.js';
+import { Hospital } from './../hospitales/hospital.entity.js';
 import type { CambiarEstadoDto, CrearPedidoDto, ListarPedidosQueryDto } from './dto/pedidos.dto.js';
 import { Pedido } from './pedido.entity.js';
-import { Hospital } from '../hospitales/hospital.entity.js';
+
+/** Una fila de la pantalla "Pedidos": todas las comidas de un becado en un día. */
+interface PedidoDelDia {
+  becadoId: number;
+  becado: string;
+  hospital: string;
+  hospitalId: number;
+  fecha: string;
+  dia: number;
+  comidas: TipoComida[];
+  estado: EstadoPedido;
+}
 
 @Injectable()
 export class PedidosService {
@@ -22,10 +34,14 @@ export class PedidosService {
     if (!(await this.becados.existsBy({ id: dto.becadoId, activo: true }))) {
       throw new NotFoundException('Becado no encontrado o inactivo');
     }
+    if (!(await this.repo.manager.existsBy(Hospital, { id: dto.hospitalId }))) {
+      throw new NotFoundException('Hospital no encontrado');
+    }
     const config = await this.configuracion.obtener();
     const filas = [...new Set(dto.comidas)].map((tipo) =>
       this.repo.create({
         becadoId: dto.becadoId,
+        hospitalId: dto.hospitalId,
         fecha: dto.fecha,
         tipoComida: tipo,
         valorUnitario: config[CAMPO_COSTO[tipo]],
@@ -35,37 +51,27 @@ export class PedidosService {
   }
 
   /** Pedidos del mes agrupados por becado y día (la forma que usa la pantalla "Pedidos"). */
-  async listar(q: ListarPedidosQueryDto): {
+  async listar(q: ListarPedidosQueryDto) {
     const { desde, hasta } = rangoMes(q.anio, q.mes);
     const qb = this.repo
       .createQueryBuilder('p')
       .innerJoinAndSelect('p.becado', 'b')
-      .innerJoinAndSelect('b.hospital', 'h')
+      .innerJoinAndSelect('p.hospital', 'h')
       .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta });
-    if (q.hospitalId) qb.andWhere('b.hospitalId = :hospitalId', { hospitalId: q.hospitalId });
+    if (q.hospitalId) qb.andWhere('p.hospitalId = :hospitalId', { hospitalId: q.hospitalId });
     if (q.estado) qb.andWhere('p.estado = :estado', { estado: q.estado });
     const filas = await qb.orderBy('p.fecha', 'ASC').addOrderBy('b.nombre', 'ASC').getMany();
 
     const PRIORIDAD: Record<EstadoPedido, number> = { pendiente: 3, entregado: 2, cancelado: 1 };
-
-    interface PedidoDelDia {
-      becadoId: number;
-      becado: string;
-      hospital: string;
-      fecha: string;
-      dia: number;
-      comidas: TipoComida[];
-      estado: EstadoPedido;
-    }
-
     const grupos = new Map<string, PedidoDelDia>();
-
     for (const f of filas) {
+      // Todas las comidas de un becado en un día van al mismo hospital (lo garantiza el flujo del residente).
       const clave = `${f.becadoId}|${f.fecha}`;
-      const grupo = grupos.get(clave) ?? {
+      const grupo: PedidoDelDia = grupos.get(clave) ?? {
         becadoId: f.becadoId,
         becado: f.becado.nombre,
-        hospital: f.becado.hospital.nombre,
+        hospital: f.hospital.nombre,
+        hospitalId: f.hospitalId,
         fecha: f.fecha,
         dia: Number(f.fecha.slice(8, 10)),
         comidas: [],
@@ -89,7 +95,7 @@ export class PedidosService {
     if (!r.affected) throw new NotFoundException('Pedido no encontrado');
   }
 
-  /** Cantidad y total en pesos por tipo de comida (siempre devuelve los cuatro tipos). */
+  /** Cantidad y total en pesos por tipo de comida, sin los cancelados (siempre devuelve los cuatro tipos). */
   async contabilidad(q: MesQueryDto) {
     const { desde, hasta } = rangoMes(q.anio, q.mes);
     const filas = await this.repo
@@ -98,6 +104,7 @@ export class PedidosService {
       .addSelect('COUNT(*)', 'cantidad')
       .addSelect('COALESCE(SUM(p.valorUnitario), 0)', 'total')
       .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta })
+      .andWhere('p.estado <> :cancelado', { cancelado: 'cancelado' })
       .groupBy('p.tipoComida')
       .getRawMany<{ tipo: TipoComida; cantidad: string; total: string }>();
 

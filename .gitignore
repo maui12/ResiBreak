@@ -1,1 +1,12 @@
 /node_modules
+apps/mobile/.env
+apps/web/.env
+
+# Variables de entorno (nunca se suben a git; sí los .env.example)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Compilados
+**/dist
+**/coverage

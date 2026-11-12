@@ -27,7 +27,7 @@ export class Usuario {
   @JoinColumn({ name: 'becadoId' })
   becado: Becado | null;
 
-  /** En residentes se copia de la ficha del becado; en admin/proveedor puede ser null. */
+  /** Hospital del usuario (por ejemplo, un proveedor). En residentes es null: eligen el hospital en cada pedido. */
   @Column({ type: 'int', nullable: true })
   hospitalId: number | null;
 

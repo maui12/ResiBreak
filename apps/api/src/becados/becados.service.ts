@@ -41,6 +41,7 @@ export class BecadosService {
       .addSelect('COALESCE(SUM(p.valorUnitario), 0)', 'monto')
       .addSelect('COUNT(DISTINCT p.tipoComida)', 'tipos')
       .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta })
+      .andWhere('p.estado <> :cancelado', { cancelado: 'cancelado' }) // lo cancelado no es comida ni gasto
       .groupBy('p.becadoId')
       .getRawMany<{ becadoId: number; comidas: string; monto: string; tipos: string }>();
 
@@ -50,8 +51,8 @@ export class BecadosService {
     return becados.map((b) => ({
       id: b.id,
       nombre: b.nombre,
+      rut: b.rut,
       especialidad: b.especialidad,
-      hospital: b.hospital.nombre,
       turnos: Number(t.get(b.id)?.turnos ?? 0),
       turnosLargos: Number(t.get(b.id)?.largos ?? 0),
       comidas: Number(p.get(b.id)?.comidas ?? 0),
@@ -72,13 +73,7 @@ export class BecadosService {
 
   async actualizar(id: number, dto: ActualizarBecadoDto) {
     const becado = await this.obtener(id);
-    // hospital viene cargado (eager); se quita para que TypeORM use hospitalId al guardar
-    const { hospital: _hospital, ...resto } = becado;
-    const guardado = await this.repo.save({ ...resto, ...dto });
-    if (dto.hospitalId !== undefined && dto.hospitalId !== becado.hospital.id) {
-      await this.usuarios.update({ becadoId: id }, { hospitalId: dto.hospitalId });
-    }
-    return guardado;
+    return this.repo.save({ ...becado, ...dto });
   }
 
   /** No se borra: se desactiva (y su cuenta también), así el historial se conserva. */
@@ -88,3 +83,5 @@ export class BecadosService {
     await this.usuarios.update({ becadoId: id }, { activo: false });
   }
 }
+
+
