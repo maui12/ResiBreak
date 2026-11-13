@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="3" failures="0" errors="0" time="5.0719103">
+    <testsuite name="test/casos-de-uso.e2e-spec.ts" timestamp="2026-11-13T02:32:05.014Z" hostname="Mauricio" tests="3" failures="0" errors="0" skipped="0" time="5.0719103">
+        <testcase classname="test/casos-de-uso.e2e-spec.ts" name="Casos de uso de ResiBreak (e2e) &gt; CU-1: el administrador crea un tipo de turno y solo lo ven los residentes de esa especialidad" time="0.0729219">
+        </testcase>
+        <testcase classname="test/casos-de-uso.e2e-spec.ts" name="Casos de uso de ResiBreak (e2e) &gt; CU-2: la residente agenda un pedido y administración lo ve en la lista de reparto y en el panel" time="0.1584067">
+        </testcase>
+        <testcase classname="test/casos-de-uso.e2e-spec.ts" name="Casos de uso de ResiBreak (e2e) &gt; CU-3: la residente cambia su pedido y luego lo cancela; el panel deja de contarlo" time="0.1283443">
+        </testcase>
+    </testsuite>
+</testsuites>

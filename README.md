@@ -390,6 +390,15 @@ pnpm --dir apps/api test:e2e
 docker compose stop db_test      # al terminar
 ```
 
+**Casos de uso (evidencia):** `apps/api/test/casos-de-uso.e2e-spec.ts` tiene 3 tests de punta a punta, uno por caso de uso
+(configurar un tipo de turno, agendar un pedido, cambiarlo y cancelarlo). Para correr solo esos:
+
+```powershell
+cd apps/api; npx vitest run --config ./vitest.config.e2e.ts test/casos-de-uso.e2e-spec.ts --reporter=verbose
+```
+
+La salida de la última ejecución, el reporte JUnit y una presentación que explica los tests están en `docs/tests-e2e/`.
+
 Los e2e borran datos, por eso solo corren contra una base cuyo nombre termine en `_test` (`test/setup-env.ts`).
 Cubren: login, RUT del becado, CRUD y validaciones de turnos disponibles, filtro por especialidad, agendar,
 restricciones de días, anticipación, reprogramar, cancelar, informe por hospital y permisos entre roles.
