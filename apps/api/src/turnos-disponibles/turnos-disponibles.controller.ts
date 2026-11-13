@@ -22,6 +22,13 @@ export class TurnosDisponiblesController {
     return this.turnos.listar(q);
   }
 
+  /** GET /api/turnos-disponibles/especialidades: sugerencias para el formulario (becados activos + turnos). */
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
+  @Get('especialidades')
+  especialidades() {
+    return this.turnos.especialidades();
+  }
+
   @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get(':id')
   obtener(@Param('id', ParseIntPipe) id: number) {

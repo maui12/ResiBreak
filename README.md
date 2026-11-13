@@ -75,7 +75,10 @@ Nueva entidad `TurnoDisponible` en `apps/api/src/turnos-disponibles/` (tabla `tu
 | `activo` | Eliminar un turno lo desactiva; los pedidos que ya lo usan no cambian |
 
 No reemplaza a la entidad `Turno` existente (`turnos/`), que sigue registrando que un becado tiene turno un día puntual.
-Los endpoints de administración están listos; **la web todavía no los usa**.
+En la app móvil, el administrador los crea, edita y elimina en **Configuración → Tipos de turno**
+(`apps/mobile/src/components/admin/TiposTurno.tsx` y el formulario `apps/mobile/src/app/admin/tipoTurno.tsx`).
+El formulario muestra la duración del turno junto al horario y sugiere las especialidades de los becados activos.
+**La web todavía no los usa**.
 
 ### 3. El residente ya no elige comidas
 
@@ -171,6 +174,7 @@ Los errores responden `{ "statusCode": 400, "message": "..." }` (`message` puede
 | Método | Ruta | Acceso | Qué hace |
 |---|---|---|---|
 | GET | `/turnos-disponibles?especialidad=&incluirInactivos=` | admin, consulta | Lista los turnos activos (o todos con `incluirInactivos=true`). `especialidad` filtra sin importar mayúsculas ni tildes |
+| GET | `/turnos-disponibles/especialidades` | admin, consulta | Especialidades de los becados activos y de los turnos activos, sin repetir (sin distinguir mayúsculas ni tildes) y en orden alfabético. Sirve para el formulario |
 | GET | `/turnos-disponibles/:id` | admin, consulta | Un turno |
 | POST | `/turnos-disponibles` | admin | Crea un turno |
 | PATCH | `/turnos-disponibles/:id` | admin | Modifica cualquier campo. `{ "activo": true }` reactiva un turno eliminado |
@@ -295,8 +299,8 @@ Cancela todas las comidas del día y libera el día. `400` si no cumple la antic
 | GET / POST / DELETE | `/calendario/feriados` | admin (escritura: admin, consulta) | Feriados `{ fecha, nombre }` |
 | GET | `/turnos?anio&mes[&becadoId]` | admin | Turnos registrados (becado + día) |
 | POST / DELETE | `/turnos`, `/turnos/:id` | admin, consulta | Registrar o eliminar el turno de un becado un día |
-| GET | `/pedidos?anio&mes[&hospitalId][&estado]` | admin | Agrupados por becado y día: `{ becadoId, becado, hospital, hospitalId, fecha, dia, comidas, estado }` |
-| GET | `/pedidos/contabilidad?anio&mes` | admin | `[{ tipo, cantidad, total }]` |
+| GET | `/pedidos?anio&mes[&hospitalId][&estado]` | admin, consulta | Lista de reparto agrupada por becado y día: `{ becadoId, becado, hospital, hospitalId, turno, fecha, dia, comidas, estado }`. Sin las comidas canceladas, salvo con `estado=cancelado` |
+| GET | `/pedidos/contabilidad?anio&mes` | admin, consulta | `[{ tipo, cantidad, total }]`, sin cancelados |
 | POST | `/pedidos` | admin, consulta | `{ becadoId, fecha, comidas, hospitalId }` (**`hospitalId` ahora es obligatorio**) |
 | PATCH | `/pedidos/estado` | admin, consulta | `{ becadoId, fecha, estado }` con `pendiente`, `entregado` o `cancelado` |
 | DELETE | `/pedidos/:id` | admin, consulta | Elimina una comida. `204` |
@@ -324,7 +328,9 @@ Cancela todas las comidas del día y libera el día. `400` si no cumple la antic
 
 ## Datos de prueba
 
-`apps/api/db/seed-prueba-becados.sql` crea datos mínimos para probar la vista del residente. Se puede ejecutar varias veces sin duplicar nada.
+`apps/api/db/seed-prueba-becados.sql` crea un residente por especialidad. **Reinicia los datos cada vez que se ejecuta:**
+borra todos los pedidos, los turnos de los becados, los tipos de turno, las cuentas de residente y las fichas de becado.
+No toca administradores, hospitales, feriados ni la configuración.
 
 **1. Recrear la base de desarrollo** (necesario la primera vez tras estos cambios, porque cambió el esquema; **borra todos los datos**):
 
@@ -346,13 +352,29 @@ Get-Content db/seed-prueba-becados.sql -Raw | docker exec -i apps-db-1 psql -U b
 
 En bash: `docker exec -i apps-db-1 psql -U becados -d becados -v ON_ERROR_STOP=1 < db/seed-prueba-becados.sql`
 
-| RUT | Contraseña | Cuenta | Qué tiene |
-|---|---|---|---|
-| `11.111.111-1` | `admin-prueba-123` | Administrador | Sirve para probar los endpoints de administración |
-| `12.345.678-5` | `residente123` | Residente de Pediatría | Ve 3 turnos y tiene un pedido ya agendado |
-| `1.234.567-4` | `residente123` | Residente de Cirugía General | Ve 2 turnos |
+Administrador: `11.111.111-1` / `admin-prueba-123` (se mantiene si ya existía).
 
-Además crea 4 turnos disponibles (días hábiles, fines de semana, uno con fecha de término y uno solo para Cirugía) y un feriado de prueba en los próximos días.
+Residentes, todos con la contraseña `residente123`:
+
+| RUT | Nombre | Especialidad |
+|---|---|---|
+| `18.234.561-K` | Valentina Rojas | Medicina Interna |
+| `17.456.782-4` | Camila Soto | Pediatría |
+| `19.345.673-1` | Fernanda Muñoz | Ginecología y Obstetricia |
+| `16.789.014-8` | Diego Villanueva | Cirugía General |
+| `20.123.455-7` | Ignacio Araya | Psiquiatría Adultos |
+| `18.901.236-5` | Javiera Contreras | Medicina Familiar |
+| `17.234.567-0` | Matías Fuentes | Anestesiología |
+| `19.876.548-1` | Sebastián Castillo | Medicina de Urgencias |
+| `16.543.219-3` | Antonia Pizarro | Imagenología |
+| `20.456.780-8` | Tomás Espinoza | Neurología Adultos |
+| `18.765.431-9` | Catalina Vega | Otorrinolaringología |
+| `17.890.122-2` | Benjamín Torres | Neurocirugía |
+| `19.012.343-K` | Martina Cortés | Medicina Física y Rehabilitación |
+
+No crea tipos de turno ni pedidos: se crean desde la app (el administrador en **Configuración → Tipos de turno**, los
+residentes en **Agendar pedidos**). Mientras no haya un tipo de turno para su especialidad, un residente no puede agendar.
+También crea un feriado de prueba en los próximos días.
 
 ---
 
@@ -382,11 +404,13 @@ restricciones de días, anticipación, reprogramar, cancelar, informe por hospit
    ```powershell
    pnpm --dir apps/mobile start
    ```
-4. Entrar con `12.345.678-5` / `residente123` y recorrer:
-   - **Resumen:** aparece el pedido de prueba con su turno, horario y hospital.
+4. Entrar como administrador (`11.111.111-1` / `admin-prueba-123`) y crear uno o más tipos de turno en
+   **Configuración → Tipos de turno** (por ejemplo, uno para Pediatría de lunes a viernes).
+5. Cerrar sesión y entrar con un residente de esa especialidad (Pediatría: `17.456.782-4` / `residente123`):
    - **Agendar pedidos:** elegir hospital → turno → fecha. En el calendario solo se habilitan los días que permite ese turno; el feriado aparece marcado como "Fer.".
-   - **Cambiar un pedido:** elegir el pedido de prueba y cambiar el hospital, el turno o la fecha.
-5. Entrar con `1.234.567-4` para comprobar que un residente de otra especialidad ve otros turnos.
+   - **Resumen:** aparece el pedido con su turno, horario y hospital.
+   - **Cambiar un pedido:** cambiar el hospital, el turno o la fecha.
+6. Entrar con un residente de otra especialidad para comprobar que no ve ese turno.
 
 Si el celular no llega a la API, revisar que el firewall de Windows permita el puerto 3000 (en una terminal de administrador):
 
@@ -398,9 +422,10 @@ New-NetFirewallRule -DisplayName "API becados 3000" -Direction Inbound -Protocol
 
 ## Pendientes conocidos
 
-- **Web:** todavía no usa la API. Falta la pantalla de administración de turnos disponibles (los endpoints ya están).
+- **Web:** todavía no usa la API. Falta la pantalla de administración de turnos disponibles (en móvil ya está, en Configuración).
+- **Tipos de turno eliminados:** la app móvil no muestra los turnos desactivados ni permite restaurarlos (la API sí: `PATCH /turnos-disponibles/:id { "activo": true }`).
 - **Proveedor:** `ProveedorModule` no está registrado en `app.module.ts`, así que `/proveedor/*` no responde.
 - **Especialidades** son texto libre en la ficha del becado; conviene una lista fija para evitar diferencias de escritura.
 - **Archivos de la web en `apps/api/src/utils`:** la web los importa desde ahí; deberían moverse a `apps/web`.
-- **App móvil:** errores de tipos ya existentes en `_layout.tsx`, `admin/panelAdmin.tsx`, `login.tsx` (imports de logos), `components/ui/collapsible.tsx` y `hooks/use-theme.ts`; `components/app-tabs.tsx` tiene un error de sintaxis y no se usa.
+- **App móvil:** errores de tipos ya existentes en `_layout.tsx`, `admin/panelAdmin.tsx`, `components/ui/collapsible.tsx` y `hooks/use-theme.ts`; `components/app-tabs.tsx` tiene un error de sintaxis y no se usa.
 - **Migraciones:** con `DB_SYNC=false` (producción) hay que crear migraciones para `becados.rut`, `pedidos.hospitalId`, `pedidos.turnoDisponibleId` y la tabla `turnos_disponibles`.

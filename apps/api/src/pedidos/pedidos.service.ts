@@ -38,16 +38,21 @@ export class PedidosService {
     return this.repo.save(filas); // un arreglo se guarda en una sola transacción
   }
 
-  /** Pedidos del mes agrupados por becado y día (la forma que usa la pantalla "Pedidos"). */
+  /**
+   * Pedidos del mes agrupados por becado y día (la lista de reparto de la pantalla "Pedidos").
+   * Las comidas canceladas no se reparten: solo aparecen si se piden con `estado=cancelado`.
+   */
   async listar(q: ListarPedidosQueryDto) {
     const { desde, hasta } = rangoMes(q.anio, q.mes);
     const qb = this.repo
       .createQueryBuilder('p')
       .innerJoinAndSelect('p.becado', 'b')
       .innerJoinAndSelect('p.hospital', 'h')
+      .leftJoinAndSelect('p.turnoDisponible', 'td')
       .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta });
     if (q.hospitalId) qb.andWhere('p.hospitalId = :hospitalId', { hospitalId: q.hospitalId });
     if (q.estado) qb.andWhere('p.estado = :estado', { estado: q.estado });
+    else qb.andWhere('p.estado <> :cancelado', { cancelado: 'cancelado' });
     const filas = await qb.orderBy('p.fecha', 'ASC').addOrderBy('b.nombre', 'ASC').getMany();
 
     const PRIORIDAD: Record<EstadoPedido, number> = { pendiente: 3, entregado: 2, cancelado: 1 };
@@ -58,6 +63,8 @@ export class PedidosService {
         becado: string;
         hospital: string;
         hospitalId: number;
+        /** Turno agendado por el residente; null si el pedido lo cargó administración. */
+        turno: { id: number; nombre: string; horaInicio: string; horaFin: string } | null;
         fecha: string;
         dia: number;
         comidas: TipoComida[];
@@ -72,12 +79,21 @@ export class PedidosService {
         becado: f.becado.nombre,
         hospital: f.hospital.nombre,
         hospitalId: f.hospitalId,
+        turno: f.turnoDisponible
+          ? {
+              id: f.turnoDisponible.id,
+              nombre: f.turnoDisponible.nombre,
+              horaInicio: f.turnoDisponible.horaInicio,
+              horaFin: f.turnoDisponible.horaFin,
+            }
+          : null,
         fecha: f.fecha,
         dia: Number(f.fecha.slice(8, 10)),
         comidas: [],
         estado: f.estado,
       };
       grupo.comidas.push(f.tipoComida);
+      grupo.comidas.sort((a, b) => TIPOS_COMIDA.indexOf(a) - TIPOS_COMIDA.indexOf(b));
       // el día se muestra con el estado "más pendiente": basta una pendiente para que el día esté pendiente
       if (PRIORIDAD[f.estado] > PRIORIDAD[grupo.estado]) grupo.estado = f.estado;
       grupos.set(clave, grupo);

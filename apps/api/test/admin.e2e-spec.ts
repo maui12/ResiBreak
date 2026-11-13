@@ -152,6 +152,29 @@ describe('Configuración y panel del administrador (e2e)', () => {
     });
   });
 
+  /* --------------------------------- Pedidos --------------------------------- */
+
+  it('la lista de reparto no incluye lo cancelado, salvo que se pida', async () => {
+    const lista = await http().get('/api/pedidos').query(mesDe(dia1)).auth(admin, { type: 'bearer' }).expect(200);
+    expect(lista.body).toEqual([
+      expect.objectContaining({
+        becado: 'Residente Panel',
+        fecha: dia1,
+        hospitalId,
+        comidas: ['almuerzo', 'once'],
+        estado: 'pendiente',
+        turno: expect.objectContaining({ id: turnoId, nombre: 'Turno sin restricciones' }),
+      }),
+    ]);
+
+    const canceladas = await http()
+      .get('/api/pedidos')
+      .query({ ...mesDe(dia1), estado: 'cancelado' })
+      .auth(admin, { type: 'bearer' })
+      .expect(200);
+    expect(canceladas.body).toEqual([expect.objectContaining({ fecha: dia2, estado: 'cancelado' })]);
+  });
+
   /* --------------------------------- Becados --------------------------------- */
 
   it('el listado de becados resume el mes sin contar lo cancelado', async () => {
@@ -180,6 +203,7 @@ describe('Configuración y panel del administrador (e2e)', () => {
     const consulta = await login(app, '1234567-4', 'clave-larga-123');
 
     await http().get('/api/becados').query(mesDe(dia1)).auth(consulta, { type: 'bearer' }).expect(200);
+    await http().get('/api/pedidos').query(mesDe(dia1)).auth(consulta, { type: 'bearer' }).expect(200);
     await http().get('/api/panel/resumen').query(mesDe(dia1)).auth(consulta, { type: 'bearer' }).expect(200);
     await http().get('/api/configuracion').auth(consulta, { type: 'bearer' }).expect(200);
     await configurar({ maxTurnosMes: 3 }, consulta).expect(403);
@@ -187,5 +211,33 @@ describe('Configuración y panel del administrador (e2e)', () => {
 
   it('SEGURIDAD: un residente no puede ver el listado de becados (403)', async () => {
     await http().get('/api/becados').query(mesDe(dia1)).auth(residente, { type: 'bearer' }).expect(403);
+  });
+
+  /* ------------------------------ Tipos de turno ------------------------------ */
+
+  it('sugiere especialidades de becados y turnos activos, sin repetir', async () => {
+    const especialidades = () =>
+      http().get('/api/turnos-disponibles/especialidades').auth(admin, { type: 'bearer' }).expect(200);
+
+    expect((await especialidades()).body).toEqual(['Pediatría']);
+
+    const otro = await http()
+      .post('/api/turnos-disponibles')
+      .auth(admin, { type: 'bearer' })
+      .send({
+        nombre: 'Noche',
+        fechaInicio: hoy,
+        horaInicio: '20:00',
+        horaFin: '08:00',
+        comidas: ['cena'],
+        especialidades: ['pediatria ', 'Cirugía General'],
+      })
+      .expect(201);
+    expect((await especialidades()).body).toEqual(['Cirugía General', 'Pediatría']);
+
+    await http().delete(`/api/turnos-disponibles/${otro.body.id}`).auth(admin, { type: 'bearer' }).expect(204);
+    expect((await especialidades()).body).toEqual(['Pediatría']);
+
+    await http().get('/api/turnos-disponibles/especialidades').auth(residente, { type: 'bearer' }).expect(403);
   });
 });
