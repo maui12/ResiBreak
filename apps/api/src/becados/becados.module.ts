@@ -9,7 +9,7 @@ import { BecadosService } from './becados.service.js';
 import { Usuario } from '../auth/usuario.entity.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Becado, Turno, Pedido])],
+  imports: [TypeOrmModule.forFeature([Becado, Turno, Pedido, Usuario])],
   controllers: [BecadosController],
   providers: [BecadosService],
   exports: [TypeOrmModule],

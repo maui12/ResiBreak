@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Becado } from '../becados/becado.entity.js';
 import { TIPOS_COMIDA } from '../common/comidas.js';
 import { hoyChile } from '../common/fecha-chile.js';
-import { DIAS_SEMANA, aplicaAEspecialidad } from './disponibilidad.js';
+import { DIAS_SEMANA, aplicaAEspecialidad, normalizarEspecialidad } from './disponibilidad.js';
 import type {
   ActualizarTurnoDisponibleDto,
   CrearTurnoDisponibleDto,
@@ -13,7 +14,10 @@ import { TurnoDisponible } from './turno-disponible.entity.js';
 
 @Injectable()
 export class TurnosDisponiblesService {
-  constructor(@InjectRepository(TurnoDisponible) private readonly repo: Repository<TurnoDisponible>) {}
+  constructor(
+    @InjectRepository(TurnoDisponible) private readonly repo: Repository<TurnoDisponible>,
+    @InjectRepository(Becado) private readonly becados: Repository<Becado>,
+  ) {}
 
   /* ------------------------------ Administración ------------------------------ */
 
@@ -44,6 +48,28 @@ export class TurnosDisponiblesService {
   async actualizar(id: number, dto: ActualizarTurnoDisponibleDto) {
     const turno = await this.obtener(id);
     return this.repo.save(this.normalizar({ ...turno, ...dto }));
+  }
+
+  /**
+   * Especialidades para elegir al crear un turno: las de los becados activos y las de los turnos
+   * activos, sin repetir (sin distinguir mayúsculas ni tildes) y en orden alfabético.
+   */
+  async especialidades(): Promise<string[]> {
+    const [deBecados, turnos] = await Promise.all([
+      this.becados
+        .createQueryBuilder('b')
+        .select('DISTINCT b.especialidad', 'especialidad')
+        .where('b.activo = true')
+        .getRawMany<{ especialidad: string }>(),
+      this.repo.find({ where: { activo: true }, select: { id: true, especialidades: true } }),
+    ]);
+
+    const unicas = new Map<string, string>();
+    for (const e of [...deBecados.map((b) => b.especialidad), ...turnos.flatMap((t) => t.especialidades)]) {
+      const nombre = e?.trim();
+      if (nombre && !unicas.has(normalizarEspecialidad(nombre))) unicas.set(normalizarEspecialidad(nombre), nombre);
+    }
+    return [...unicas.values()].sort((a, b) => a.localeCompare(b, 'es'));
   }
 
   /** No se borra: se desactiva, así los pedidos que ya lo usan conservan su historial. */

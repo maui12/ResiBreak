@@ -63,6 +63,25 @@ export function mesCorto(fecha: Date): string {
   return MESES_CORTOS[fecha.getMonth()];
 }
 
+/** AAAA-MM-DD -> DD-MM-AAAA (como se escribe en los formularios). */
+export const textoDesdeClave = (clave: string) => clave.split('-').reverse().join('-');
+
+/** Mientras se escribe: "1211" -> "12-11", "12112026" -> "12-11-2026". */
+export function mascaraFecha(texto: string): string {
+  const digitos = texto.replace(/\D/g, '').slice(0, 8);
+  return [digitos.slice(0, 2), digitos.slice(2, 4), digitos.slice(4)].filter(Boolean).join('-');
+}
+
+/** DD-MM-AAAA -> AAAA-MM-DD, o null si no es una fecha que exista. */
+export function claveDesdeTexto(texto: string): string | null {
+  const partes = /^(\d{2})-(\d{2})-(\d{4})$/.exec(texto.trim());
+  if (!partes) return null;
+  const [, dd, mm, aaaa] = partes;
+  const fecha = new Date(Number(aaaa), Number(mm) - 1, Number(dd));
+  const existe = fecha.getDate() === Number(dd) && fecha.getMonth() === Number(mm) - 1 && Number(aaaa) >= 2000;
+  return existe ? `${aaaa}-${mm}-${dd}` : null;
+}
+
 /** Suma días a una fecha AAAA-MM-DD y devuelve otra AAAA-MM-DD. */
 export function sumarDiasClave(clave: string, dias: number): string {
   return claveFecha(sumarDias(fechaDesdeClave(clave), dias));
