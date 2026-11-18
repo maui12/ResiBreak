@@ -11,7 +11,7 @@ import type { CambiarEstadoDto, CrearPedidoDto, ListarPedidosQueryDto } from './
 import { Pedido } from './pedido.entity.js';
 
 /** Una fila de la pantalla "Pedidos": todas las comidas de un becado en un día. */
-interface PedidoDelDia {
+export interface PedidoDelDia {
   becadoId: number;
   becado: string;
   hospital: string;

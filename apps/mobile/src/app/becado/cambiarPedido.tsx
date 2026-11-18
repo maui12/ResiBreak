@@ -238,7 +238,7 @@ export default function CambiarPedidoScreen() {
     }
   }
 
-  const dias = reglas?.anticipacionMinimaDias ?? 1;
+  const diass = reglas?.anticipacionMinimaDias ?? 1;
 
   return (
     <ScreenLayout
@@ -273,7 +273,7 @@ export default function CambiarPedidoScreen() {
               <Paso
                 numero={1}
                 titulo="Seleccionar pedido"
-                ayuda={textoRegla(dias)}
+                ayuda={textoRegla(diass)}
                 completo={pedidoActual !== null}
               >
                 {modificables.length === 0 ? (
@@ -367,7 +367,7 @@ export default function CambiarPedidoScreen() {
               <Paso
                 numero={4}
                 titulo="¿Cambiar la fecha?"
-                ayuda={`${textoRegla(dias)} Primer día posible: ${formatoFechaLarga(primerDia)}.`}
+                ayuda={`${textoRegla(diass)} Primer día posible: ${formatoFechaLarga(primerDia)}.`}
                 bloqueado={pedidoActual === null}
                 completo={cambiaFecha}
               >

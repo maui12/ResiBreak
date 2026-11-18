@@ -16,8 +16,8 @@ import { router } from 'expo-router';
 
 import { iniciarSesionConRut, mensajeDeLogin } from '../services/auth.service';
 
-import logoUCN from '../../../../apps/shared/assets/logoUCN.png';
-import logoFAMED from '../../../shared/assets/logoFAMED.png';
+import logoUCN from './../../../shared/assets/logoUCN.png';
+import logoFAMED from './../../../shared/assets/logoFAMED.png';
 
 export default function Login() {
   const [usuario, setUsuario] = useState('');

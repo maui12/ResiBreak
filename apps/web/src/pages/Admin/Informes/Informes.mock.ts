@@ -25,16 +25,16 @@ export const PRECIOS_COMIDA: Record<TipoComida, number> = {
 };
 
 const BECADOS = [
-  { nombre: 'Valentina Rojas', especialidad: 'Terapia Intensiva', hospital: 'Coquimbo' },
-  { nombre: 'Josefa Ferres', especialidad: 'Medicina de Urgencia', hospital: 'La Serena' },
-  { nombre: 'Ignacio Bravo', especialidad: 'Cirugía General', hospital: 'Coquimbo' },
-  { nombre: 'Matías Fuentes', especialidad: 'Cardiología', hospital: 'Ovalle' },
-  { nombre: 'Diego Villanueva', especialidad: 'Medicina Interna', hospital: 'La Serena' },
-  { nombre: 'Camila Soto', especialidad: 'Pediatría', hospital: 'Coquimbo' },
-  { nombre: 'Andrés Mardones', especialidad: 'Anestesiología', hospital: 'Ovalle' },
-  { nombre: 'Fernanda Ossa', especialidad: 'Traumatología', hospital: 'La Serena' },
-  { nombre: 'Paula Leiva', especialidad: 'Neurología', hospital: 'Coquimbo' },
-  { nombre: 'Tomás Aravena', especialidad: 'Ginecología y Obstetricia', hospital: 'Ovalle' },
+  { nombre: 'Residente', especialidad: 'Terapia Intensiva', hospital: 'Coquimbo' },
+  { nombre: 'Residente', especialidad: 'Medicina de Urgencia', hospital: 'La Serena' },
+  { nombre: 'Residente', especialidad: 'Cirugía General', hospital: 'Coquimbo' },
+  { nombre: 'Residente', especialidad: 'Cardiología', hospital: 'Ovalle' },
+  { nombre: 'Residente', especialidad: 'Medicina Interna', hospital: 'La Serena' },
+  { nombre: 'Residente', especialidad: 'Pediatría', hospital: 'Coquimbo' },
+  { nombre: 'Residente', especialidad: 'Anestesiología', hospital: 'Ovalle' },
+  { nombre: 'Residente', especialidad: 'Traumatología', hospital: 'La Serena' },
+  { nombre: 'Residente', especialidad: 'Neurología', hospital: 'Coquimbo' },
+  { nombre: 'Residente', especialidad: 'Ginecología y Obstetricia', hospital: 'Ovalle' },
 ];
 
 // Generador pseudoaleatorio con semilla fija: los datos son siempre los mismos.

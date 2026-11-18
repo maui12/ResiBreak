@@ -154,7 +154,7 @@ export default function AgendarPedidoScreen() {
     }
   }
 
-  const dias = reglas?.anticipacionMinimaDias ?? 1;
+  const diass = reglas?.anticipacionMinimaDias ?? 1;
 
   return (
     <ScreenLayout titulo="Agendar pedidos" subtitulo="Hospital, turno y fecha" menu={MENU_RESIDENTE}>
@@ -216,7 +216,7 @@ export default function AgendarPedidoScreen() {
               <Paso
                 numero={3}
                 titulo="Seleccionar fecha"
-                ayuda={`${textoRegla(dias)} Primer día posible: ${formatoFechaLarga(primerDia)}.`}
+                ayuda={`${textoRegla(diass)} Primer día posible: ${formatoFechaLarga(primerDia)}.`}
                 bloqueado={turno === null}
                 completo={fechaElegida !== null}
               >

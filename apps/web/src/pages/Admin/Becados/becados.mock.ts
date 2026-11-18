@@ -4,7 +4,7 @@ import type { Becado } from './becados.types';
 export const becadosMock: Becado[] = [
   {
     id: 1,
-    nombre: 'Valentina Rojas',
+    nombre: 'Residente de prueba 1',
     especialidad: 'Medicina Interna',
     hospital: 'La Serena',
     turnos: 14,
@@ -15,7 +15,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 2,
-    nombre: 'Josefa Ferres',
+    nombre: 'Residente de prueba 2',
     especialidad: 'Medicina de Urgencias',
     hospital: 'Coquimbo',
     turnos: 9,
@@ -26,7 +26,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 3,
-    nombre: 'Camila Soto',
+    nombre: 'Residente de prueba 3',
     especialidad: 'Pediatría',
     hospital: 'Coquimbo',
     turnos: 6,
@@ -37,7 +37,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 4,
-    nombre: 'Ignacio Bravo',
+    nombre: 'Residente de prueba 4',
     especialidad: 'Cirugía General',
     hospital: 'La Serena',
     turnos: 6,
@@ -48,7 +48,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 5,
-    nombre: 'Tomás Aravena',
+    nombre: 'Residente de prueba 5',
     especialidad: 'Ginecología y Obstetricia',
     hospital: 'Ovalle',
     turnos: 6,
@@ -59,7 +59,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 6,
-    nombre: 'Matías Fuentes',
+    nombre: 'Residente de prueba 6',
     especialidad: 'Urología Adultos',
     hospital: 'La Serena',
     turnos: 5,
@@ -70,7 +70,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 7,
-    nombre: 'Diego Villanueva',
+    nombre: 'Residente de prueba 7',
     especialidad: 'Medicina Familiar',
     hospital: 'Coquimbo',
     turnos: 5,
@@ -81,7 +81,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 8,
-    nombre: 'Andrés Mardones',
+    nombre: 'Residente de prueba 8',
     especialidad: 'Traumatología',
     hospital: 'Ovalle',
     turnos: 4,
@@ -92,7 +92,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 9,
-    nombre: 'Paula Leiva',
+    nombre: 'Residente de prueba 9',
     especialidad: 'Anestesiología',
     hospital: 'La Serena',
     turnos: 3,
@@ -103,7 +103,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 10,
-    nombre: 'Fernanda Ossa',
+    nombre: 'Residente de prueba 10',
     especialidad: 'Neurología Adultos',
     hospital: 'La Serena',
     turnos: 2,
@@ -114,7 +114,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 11,
-    nombre: 'Sebastián Muñoz',
+    nombre: 'Residente de prueba 11',
     especialidad: 'Imagenología',
     hospital: 'Coquimbo',
     turnos: 8,
@@ -125,7 +125,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 12,
-    nombre: 'Daniela Cortés',
+    nombre: 'Residente de prueba 12',
     especialidad: 'Neurocirugía',
     hospital: 'La Serena',
     turnos: 7,
@@ -136,7 +136,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 13,
-    nombre: 'Francisca Pizarro',
+    nombre: 'Residente de prueba 13',
     especialidad: 'Otorrinolaringología',
     hospital: 'Ovalle',
     turnos: 5,
@@ -147,7 +147,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 14,
-    nombre: 'Nicolás Herrera',
+    nombre: 'Residente de prueba 14',
     especialidad: 'Psiquiatría Infanto Juvenil',
     hospital: 'Coquimbo',
     turnos: 6,
@@ -158,7 +158,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 15,
-    nombre: 'Catalina Vega',
+    nombre: 'Residente de prueba 15',
     especialidad: 'Psiquiatría Adultos',
     hospital: 'La Serena',
     turnos: 4,
@@ -169,7 +169,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 16,
-    nombre: 'Felipe González',
+    nombre: 'Residente de prueba 16',
     especialidad: 'Medicina Física y de Rehabilitación',
     hospital: 'Coquimbo',
     turnos: 5,
@@ -180,7 +180,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 17,
-    nombre: 'Antonia Silva',
+    nombre: 'Residente de prueba 17',
     especialidad: 'Oftalmología',
     hospital: 'Ovalle',
     turnos: 3,
@@ -191,7 +191,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 18,
-    nombre: 'Benjamín Castro',
+    nombre: 'Residente de prueba 18',
     especialidad: 'Medicina Interna',
     hospital: 'Coquimbo',
     turnos: 7,
@@ -202,7 +202,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 19,
-    nombre: 'Isidora Morales',
+    nombre: 'Residente de prueba 19',
     especialidad: 'Pediatría',
     hospital: 'La Serena',
     turnos: 8,
@@ -213,7 +213,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 20,
-    nombre: 'Vicente Ramírez',
+    nombre: 'Residente de prueba 20',
     especialidad: 'Cirugía General',
     hospital: 'Ovalle',
     turnos: 5,
@@ -224,7 +224,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 21,
-    nombre: 'Emilia Torres',
+    nombre: 'Residente de prueba 21',
     especialidad: 'Medicina de Urgencias',
     hospital: 'Coquimbo',
     turnos: 10,
@@ -235,7 +235,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 22,
-    nombre: 'Agustín Flores',
+    nombre: 'Residente de prueba 22',
     especialidad: 'Anestesiología',
     hospital: 'La Serena',
     turnos: 6,
@@ -246,7 +246,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 23,
-    nombre: 'Martina Sepúlveda',
+    nombre: 'Residente de prueba 23',
     especialidad: 'Ginecología y Obstetricia',
     hospital: 'Ovalle',
     turnos: 4,
@@ -257,7 +257,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 24,
-    nombre: 'Joaquín Reyes',
+    nombre: 'Residente de prueba 24',
     especialidad: 'Traumatología',
     hospital: 'Coquimbo',
     turnos: 7,
@@ -268,7 +268,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 25,
-    nombre: 'Florencia Díaz',
+    nombre: 'Residente de prueba 25',
     especialidad: 'Neurología Adultos',
     hospital: 'La Serena',
     turnos: 3,
@@ -279,7 +279,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 26,
-    nombre: 'Maximiliano Soto',
+    nombre: 'Residente de prueba 26',
     especialidad: 'Imagenología',
     hospital: 'Ovalle',
     turnos: 6,
@@ -290,7 +290,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 27,
-    nombre: 'Amanda Contreras',
+    nombre: 'Residente de prueba 27',
     especialidad: 'Psiquiatría Adultos',
     hospital: 'Coquimbo',
     turnos: 5,
@@ -301,7 +301,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 28,
-    nombre: 'Lucas Medina',
+    nombre: 'Residente de prueba 28',
     especialidad: 'Urología Adultos',
     hospital: 'La Serena',
     turnos: 4,
@@ -312,7 +312,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 29,
-    nombre: 'Trinidad Aguilera',
+    nombre: 'Residente de prueba 29',
     especialidad: 'Oftalmología',
     hospital: 'Coquimbo',
     turnos: 5,
@@ -323,7 +323,7 @@ export const becadosMock: Becado[] = [
   },
   {
     id: 30,
-    nombre: 'Cristóbal Núñez',
+    nombre: 'Residente de prueba 30',
     especialidad: 'Medicina Física y de Rehabilitación',
     hospital: 'Ovalle',
     turnos: 6,
