@@ -1,166 +1,85 @@
-import { useMemo, useState } from 'react';
-import Sidebar, {
-  type OpcionSidebar,
-} from '../../../components/Sidebar/Sidebar';
+import { useCallback, useEffect, useState } from 'react';
+import Sidebar from '../../../components/Sidebar/Sidebar';
+import { ApiError } from '../../../utils/api';
+import {
+  NOMBRE_COMIDA,
+  NOMBRE_ESTADO,
+  OPCIONES_PROVEEDOR,
+  TIPOS_COMIDA,
+  formatearFecha,
+  marcarEntregado as marcarEntregadoApi,
+  obtenerPedidosDelDia,
+  obtenerResumen,
+  type PedidoProveedor,
+  type TipoComida,
+} from '../comun/proveedor.service';
 import './PedidosDeHoy.css';
 
-type EstadoPedido = 'Pendiente' | 'Entregado';
-type TipoComida = 'Desayuno' | 'Almuerzo' | 'Once' | 'Cena';
-
-interface Pedido {
-  id: number;
-  becado: string;
-  hospital: string;
-  tipoComida: TipoComida;
-  fechaEntrega: string;
-  estado: EstadoPedido;
-}
-
-const opcionesProveedor: OpcionSidebar[] = [
-  {
-    label: 'Pedidos de hoy',
-    ruta: '/proveedor/pedidos-de-hoy',
-  },
-  {
-    label: 'Historial de pedidos',
-    ruta: '/proveedor/historial',
-  },
-];
-
-const pedidosIniciales: Pedido[] = [
-  {
-    id: 1,
-    becado: 'Valentina Rojas',
-    hospital: 'Hospital Regional',
-    tipoComida: 'Desayuno',
-    fechaEntrega: '2026-10-22',
-    estado: 'Pendiente',
-  },
-  {
-    id: 2,
-    becado: 'Diego Muñoz',
-    hospital: 'Hospital Regional',
-    tipoComida: 'Desayuno',
-    fechaEntrega: '2026-10-22',
-    estado: 'Entregado',
-  },
-  {
-    id: 3,
-    becado: 'Camila González',
-    hospital: 'Hospital San Pablo',
-    tipoComida: 'Almuerzo',
-    fechaEntrega: '2026-10-22',
-    estado: 'Pendiente',
-  },
-  {
-    id: 4,
-    becado: 'Matías Contreras',
-    hospital: 'Hospital Regional',
-    tipoComida: 'Almuerzo',
-    fechaEntrega: '2026-10-22',
-    estado: 'Pendiente',
-  },
-  {
-    id: 5,
-    becado: 'Francisca Pérez',
-    hospital: 'Hospital San Pablo',
-    tipoComida: 'Once',
-    fechaEntrega: '2026-10-22',
-    estado: 'Entregado',
-  },
-  {
-    id: 6,
-    becado: 'Sebastián Torres',
-    hospital: 'Hospital Regional',
-    tipoComida: 'Cena',
-    fechaEntrega: '2026-10-22',
-    estado: 'Pendiente',
-  },
-  {
-    id: 7,
-    becado: 'Daniela Silva',
-    hospital: 'Hospital San Pablo',
-    tipoComida: 'Cena',
-    fechaEntrega: '2026-10-23',
-    estado: 'Pendiente',
-  },
-  {
-    id: 8,
-    becado: 'Nicolás Herrera',
-    hospital: 'Hospital Regional',
-    tipoComida: 'Desayuno',
-    fechaEntrega: '2026-10-23',
-    estado: 'Pendiente',
-  },
-];
-
-const tiposComida: TipoComida[] = [
-  'Desayuno',
-  'Almuerzo',
-  'Once',
-  'Cena',
-];
-
-function obtenerFechaLocal(): string {
-  const fecha = new Date();
-  const anio = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dia = String(fecha.getDate()).padStart(2, '0');
-
-  return `${anio}-${mes}-${dia}`;
-}
-
-function formatearFecha(fecha: string): string {
-  if (!fecha) return '';
-
-  const [anio, mes, dia] = fecha.split('-');
-  return `${dia}/${mes}/${anio}`;
-}
+const mensaje = (e: unknown) => (e instanceof ApiError ? e.message : 'Error inesperado');
 
 function PedidosDeHoy() {
-  const [pedidos, setPedidos] = useState<Pedido[]>(pedidosIniciales);
-  const [fechaSeleccionada, setFechaSeleccionada] =
-    useState(obtenerFechaLocal);
-  const [tipoSeleccionado, setTipoSeleccionado] = useState<
-    TipoComida | 'Todos'
-  >('Todos');
+  // "Hoy" lo define el servidor (hora de Chile), no el reloj del navegador.
+  const [hoy, setHoy] = useState<string | null>(null);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<string | null>(null);
+  const [tipoSeleccionado, setTipoSeleccionado] = useState<TipoComida | 'Todos'>('Todos');
+  const [pedidos, setPedidos] = useState<PedidoProveedor[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
+  const [entregando, setEntregando] = useState<number | null>(null);
 
-  const pedidosFiltrados = useMemo(
-    () =>
-      pedidos.filter((pedido) => {
-        const coincideFecha =
-          pedido.fechaEntrega === fechaSeleccionada;
+  useEffect(() => {
+    obtenerResumen()
+      .then((r) => {
+        setHoy(r.hoy);
+        setFechaSeleccionada((f) => f ?? r.hoy);
+      })
+      .catch((e: unknown) => {
+        setError(mensaje(e));
+        setCargando(false);
+      });
+  }, []);
 
-        const coincideTipo =
-          tipoSeleccionado === 'Todos' ||
-          pedido.tipoComida === tipoSeleccionado;
+  const cargar = useCallback(async () => {
+    if (!fechaSeleccionada) return;
+    setCargando(true);
+    setError('');
+    try {
+      const tipo = tipoSeleccionado === 'Todos' ? undefined : tipoSeleccionado;
+      setPedidos((await obtenerPedidosDelDia(fechaSeleccionada, tipo)).items);
+    } catch (e) {
+      setError(mensaje(e));
+      setPedidos([]);
+    } finally {
+      setCargando(false);
+    }
+  }, [fechaSeleccionada, tipoSeleccionado]);
 
-        return coincideFecha && coincideTipo;
-      }),
-    [pedidos, fechaSeleccionada, tipoSeleccionado],
-  );
+  useEffect(() => {
+    void cargar();
+  }, [cargar]);
 
-  const pedidosPendientes = pedidosFiltrados.filter(
-    (pedido) => pedido.estado === 'Pendiente',
-  ).length;
+  const pedidosFiltrados = pedidos;
+  const pedidosPendientes = pedidos.filter((p) => p.estado === 'pendiente').length;
+  const pedidosEntregados = pedidos.filter((p) => p.estado === 'entregado').length;
+  const esHoy = fechaSeleccionada === hoy;
 
-  const pedidosEntregados = pedidosFiltrados.filter(
-    (pedido) => pedido.estado === 'Entregado',
-  ).length;
-
-  function marcarEntregado(id: number) {
-    setPedidos((actuales) =>
-      actuales.map((pedido) =>
-        pedido.id === id
-          ? { ...pedido, estado: 'Entregado' }
-          : pedido,
-      ),
-    );
+  async function marcarEntregado(id: number) {
+    setEntregando(id);
+    setError('');
+    try {
+      await marcarEntregadoApi(id);
+      setPedidos((actuales) => actuales.map((p) => (p.id === id ? { ...p, estado: 'entregado' } : p)));
+    } catch (e) {
+      setError(mensaje(e));
+      void cargar(); // por si otro proveedor ya lo entregó
+    } finally {
+      setEntregando(null);
+    }
   }
 
   return (
     <div className="proveedor-layout">
-      <Sidebar opciones={opcionesProveedor} />
+      <Sidebar opciones={OPCIONES_PROVEEDOR} />
 
       <main className="proveedor-contenido">
         <div className="proveedor-pagina">
@@ -185,9 +104,9 @@ function PedidosDeHoy() {
               <input
                 id="fecha-entrega"
                 type="date"
-                value={fechaSeleccionada}
+                value={fechaSeleccionada ?? ''}
                 onChange={(event) =>
-                  setFechaSeleccionada(event.target.value)
+                  setFechaSeleccionada(event.target.value || hoy)
                 }
               />
             </div>
@@ -204,9 +123,9 @@ function PedidosDeHoy() {
                 }
               >
                 <option value="Todos">Todas las comidas</option>
-                {tiposComida.map((tipo) => (
+                {TIPOS_COMIDA.map((tipo) => (
                   <option key={tipo} value={tipo}>
-                    {tipo}
+                    {NOMBRE_COMIDA[tipo]}
                   </option>
                 ))}
               </select>
@@ -235,10 +154,17 @@ function PedidosDeHoy() {
 
           <div className="proveedor-listado-encabezado">
             <h2>Detalle de pedidos</h2>
-            <span>{formatearFecha(fechaSeleccionada)}</span>
+            <span>{fechaSeleccionada ? formatearFecha(fechaSeleccionada) : ''}</span>
           </div>
 
-          {tiposComida.map((tipo) => {
+          {error && (
+            <p className="proveedor-error" role="alert">
+              {error}
+            </p>
+          )}
+          {cargando && <p className="proveedor-cargando">Cargando pedidos…</p>}
+
+          {!cargando && TIPOS_COMIDA.map((tipo) => {
             const pedidosDelTipo = pedidosFiltrados.filter(
               (pedido) => pedido.tipoComida === tipo,
             );
@@ -250,7 +176,7 @@ function PedidosDeHoy() {
                 className="proveedor-seccion-comida"
                 key={tipo}
               >
-                <h3>{tipo}</h3>
+                <h3>{NOMBRE_COMIDA[tipo]}</h3>
 
                 <div className="proveedor-lista-pedidos">
                   {pedidosDelTipo.map((pedido) => (
@@ -259,29 +185,35 @@ function PedidosDeHoy() {
                       key={pedido.id}
                     >
                       <div className="proveedor-pedido-info">
-                        <strong>{pedido.becado}</strong>
-                        <span>{pedido.hospital}</span>
+                        <strong>{pedido.becado.nombre}</strong>
+                        <span>
+                          {pedido.becado.especialidad} · {pedido.becado.hospital}
+                        </span>
                       </div>
 
                       <span
                         className={`proveedor-estado ${
-                          pedido.estado === 'Entregado'
+                          pedido.estado === 'entregado'
                             ? 'proveedor-estado-entregado'
                             : 'proveedor-estado-pendiente'
                         }`}
                       >
-                        {pedido.estado}
+                        {NOMBRE_ESTADO[pedido.estado]}
                       </span>
 
                       <button
                         className="proveedor-boton"
                         type="button"
-                        disabled={pedido.estado === 'Entregado'}
+                        // Solo se entregan pedidos pendientes de hoy (lo valida también el backend).
+                        disabled={pedido.estado !== 'pendiente' || !esHoy || entregando !== null}
+                        title={!esHoy ? 'Solo se pueden marcar entregas del día de hoy' : undefined}
                         onClick={() => marcarEntregado(pedido.id)}
                       >
-                        {pedido.estado === 'Entregado'
+                        {pedido.estado === 'entregado'
                           ? 'Pedido entregado'
-                          : 'Marcar entregado'}
+                          : entregando === pedido.id
+                            ? 'Guardando…'
+                            : 'Marcar entregado'}
                       </button>
                     </article>
                   ))}
@@ -290,7 +222,7 @@ function PedidosDeHoy() {
             );
           })}
 
-          {pedidosFiltrados.length === 0 && (
+          {!cargando && !error && pedidosFiltrados.length === 0 && (
             <div className="proveedor-sin-pedidos">
               <h3>No hay pedidos para esta fecha</h3>
               <p>

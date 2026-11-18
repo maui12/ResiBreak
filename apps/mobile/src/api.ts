@@ -1,14 +1,18 @@
-import { obtenerToken } from './sesion';
+import { router } from 'expo-router';
+
+import { cerrarSesion, obtenerToken } from './sesion';
 
 /**
  * Dirección del backend.
  * En un celular físico NO sirve "localhost": hay que usar la IP de tu computador
+ * en la red WiFi (ej. http://192.168.1.50:3000/api). Se configura en mobile/.env:
  * en la red WiFi (ej. http://192.168.1.50:3000/api). Se configura en mobile/.env:
  *
  *   EXPO_PUBLIC_API_URL=http://192.168.1.50:3000/api
  *
  * (Emulador Android: http://10.0.2.2:3000/api — Simulador iOS: http://localhost:3000/api)
  */
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 
 export type TipoDia = 'normal' | '24h';
@@ -52,14 +56,21 @@ interface OpcionesPeticion {
   consulta?: Record<string, ValorConsulta>;
 }
 
-function mensajeSegunRespuesta(status: number, cuerpo: unknown): string {
-  if (status === 401) return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-  if (status === 403) return 'Tu usuario no tiene permiso para realizar esta acción.';
-
-  // Nest responde { statusCode, message } y message puede ser un texto o una lista.
+/** Texto que envió el servidor. Nest responde { statusCode, message } y message puede ser un texto o una lista. */
+export function mensajeDelServidor(cuerpo: unknown): string | null {
   const mensaje = (cuerpo as { message?: string | string[] } | null)?.message;
   if (Array.isArray(mensaje) && mensaje.length > 0) return mensaje.join('. ');
   if (typeof mensaje === 'string' && mensaje.length > 0) return mensaje;
+  return null;
+}
+
+function mensajeSegunRespuesta(status: number, cuerpo: unknown): string {
+  if (status === 401) return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+  if (status === 429) return 'Demasiados intentos seguidos. Espera un minuto e inténtalo de nuevo.';
+
+  const mensaje = mensajeDelServidor(cuerpo);
+  if (mensaje) return mensaje;
+  if (status === 403) return 'Tu usuario no tiene permiso para realizar esta acción.';
 
   return `El servidor respondió con un error (${status}).`;
 }
@@ -91,30 +102,8 @@ export async function peticion<T>(ruta: string, opciones: OpcionesPeticion = {})
   }
 
   if (!respuesta.ok) {
-    const cuerpoError: unknown = await respuesta.json().catch(() => null);
-<<<<<<< Updated upstream
-    throw new ApiError(respuesta.status, mensajeSegunRespuesta(respuesta.status, cuerpoError));
-=======
-
-    // Token vencido o inválido: se cierra la sesión y se vuelve al login.
-    if (respuesta.status === 401 && token) {
-      cerrarSesion();
-      router.replace('/login');
-    }
-
-    const mensaje =
-      // En el login, el 401 son credenciales malas: se muestra el mensaje del servidor.
-      respuesta.status === 401 && !token
-        ? (mensajeDelServidor(cuerpoError) ?? 'Credenciales inválidas.')
-        : mensajeSegunRespuesta(respuesta.status, cuerpoError);
-    throw new ApiError(respuesta.status, mensaje);
->>>>>>> Stashed changes
+    throw new Error(`No se pudo cargar el calendario (error ${respuesta.status})`);
   }
 
-  if (respuesta.status === 204) return undefined as T;
-  return (await respuesta.json()) as T;
-}
-
-export function obtenerCalendario(anio: number, mes: number): Promise<MesCalendario> {
-  return peticion<MesCalendario>('/calendario', { consulta: { anio, mes } });
+  return respuesta.json();
 }

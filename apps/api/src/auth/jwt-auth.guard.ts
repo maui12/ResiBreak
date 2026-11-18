@@ -25,7 +25,7 @@ export class JwtAuthGuard implements CanActivate {
     if (tipo !== 'Bearer' || !token) throw new UnauthorizedException('Falta el token');
 
     try {
-      req.user = await this.jwt.verifyAsync<JwtPayload>(token);
+      req.user = await this.jwt.verifyAsync<JwtPayload>(token, {algorithms: ['HS256']});
     } catch {
       throw new UnauthorizedException('Token inválido o expirado');
     }

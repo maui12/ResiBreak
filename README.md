@@ -1,25 +1,18 @@
 # ResiBreak
 
+Sistema de gestión de la alimentación de los becados (residentes): los residentes agendan sus pedidos de comida,
+la administración gestiona turnos, becados y costos, y el proveedor reparte.
+
+
 ## Estructura
 
-en carpeta apps/
-
-**web** = React + Vite
-
-**mobile** = React native + Expo
-
-**api** = backend, Nestjs
-
-
-# ResiBreak API
-
-API REST del sistema de gestión de alimentación de residentes. La consumen la web (React) y la app móvil (Expo).
-
-**Stack:** NestJS · TypeORM · PostgreSQL · JWT.
-
-> Esta documentación incluye el endpoint `PUT /turnos/reprogramar` y el campo `hospitalId` de los pedidos (cambio de día u hospital de un pedido).
-
-La API queda en `http://localhost:3000/api`. Arráncala con `TZ=America/Santiago`: las reglas de anticipación se calculan con la hora del servidor.
+```
+apps/
+  api/      backend compartido · NestJS + TypeORM + PostgreSQL + JWT
+  mobile/   app móvil · React Native + Expo (por ahora conectada: vistas del residente)
+  web/      página web · React + Vite (login y proveedor conectados; pantallas de admin aún con datos de prueba)
+  docker-compose.yml   bases de datos de desarrollo y de tests
+```
 
 ## Requisitos
 

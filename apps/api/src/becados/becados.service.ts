@@ -19,34 +19,8 @@ export class BecadosService {
     @InjectRepository(Becado) private readonly repo: Repository<Becado>,
     @InjectRepository(Turno) private readonly turnos: Repository<Turno>,
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
+    @InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
   ) {}
-
-<<<<<<< Updated upstream
-  /**
-   * Crea un residente de prueba si SEED_DEMO=true. Se hace en onApplicationBootstrap (y no en
-   * onModuleInit) para que los hospitales iniciales ya existan. Nunca corre en producción.
-   */
-  async onApplicationBootstrap() {
-    if (this.config.get<string>('SEED_DEMO') !== 'true') return;
-    if (process.env.NODE_ENV === 'production') {
-      this.logger.warn('SEED_DEMO se ignora porque NODE_ENV=production.');
-      return;
-    }
-    if (await this.repo.existsBy({ rut: RUT_RESIDENTE_DEMO })) return;
-
-    const hospital =
-      (await this.hospitales.find({ order: { id: 'ASC' }, take: 1 }))[0] ??
-      (await this.hospitales.save(this.hospitales.create({ nombre: 'Ovalle' })));
-    await this.repo.save(
-      this.repo.create({
-        nombre: 'Residente de Prueba',
-        rut: RUT_RESIDENTE_DEMO,
-        especialidad: 'Medicina Interna',
-        hospitalId: hospital.id,
-      }),
-    );
-    this.logger.log(`Residente de prueba creado (RUT ${RUT_RESIDENTE_DEMO})`);
-  }
 
 =======
   
@@ -72,6 +46,7 @@ export class BecadosService {
       .addSelect('COALESCE(SUM(p.valorUnitario), 0)', 'monto')
       .addSelect('COUNT(DISTINCT p.tipoComida)', 'tipos')
       .where('p.fecha >= :desde AND p.fecha < :hasta', { desde, hasta })
+      .andWhere('p.estado <> :cancelado', { cancelado: 'cancelado' }) // lo cancelado no es comida ni gasto
       .groupBy('p.becadoId')
       .getRawMany<{ becadoId: number; comidas: string; monto: string; tipos: string }>();
 
@@ -83,7 +58,6 @@ export class BecadosService {
       nombre: b.nombre,
       rut: b.rut,
       especialidad: b.especialidad,
-      hospital: b.hospital.nombre,
       turnos: Number(t.get(b.id)?.turnos ?? 0),
       turnosLargos: Number(t.get(b.id)?.largos ?? 0),
       comidas: Number(p.get(b.id)?.comidas ?? 0),
@@ -104,14 +78,15 @@ export class BecadosService {
 
   async actualizar(id: number, dto: ActualizarBecadoDto) {
     const becado = await this.obtener(id);
-    // hospital viene cargado (eager); se quita para que TypeORM use hospitalId al guardar
-    const { hospital: _hospital, ...resto } = becado;
-    return this.repo.save({ ...resto, ...dto });
+    return this.repo.save({ ...becado, ...dto });
   }
 
-  /** No se borra: se desactiva, así el historial de turnos y pedidos se conserva. */
+  /** No se borra: se desactiva (y su cuenta también), así el historial se conserva. */
   async desactivar(id: number) {
     await this.obtener(id);
     await this.repo.update({ id }, { activo: false });
+    await this.usuarios.update({ becadoId: id }, { activo: false });
   }
 }
+
+

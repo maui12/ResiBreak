@@ -8,6 +8,7 @@ import { TurnosService } from './turnos.service.js';
 export class TurnosController {
   constructor(private readonly turnos: TurnosService) {}
 
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get()
   listar(@Query() q: ListarTurnosQueryDto) {
     return this.turnos.listar(q);

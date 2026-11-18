@@ -12,8 +12,11 @@ import { HealthController } from './health/health.controller.js';
 import { HospitalesModule } from './hospitales/hospitales.module.js';
 import { InformesModule } from './informes/informes.module.js';
 import { PanelModule } from './panel/panel.module.js';
+import { NotificacionesModule } from './notificaciones/notificaciones.module.js';
 import { PedidosModule } from './pedidos/pedidos.module.js';
+import { ProveedorModule } from './proveedor/proveedor.module.js';
 import { TurnosModule } from './turnos/turnos.module.js';
+import { TurnosDisponiblesModule } from './turnos-disponibles/turnos-disponibles.module.js';
 
 @Module({
   imports: [
@@ -29,8 +32,11 @@ import { TurnosModule } from './turnos/turnos.module.js';
         password: c.getOrThrow<string>('DB_PASSWORD'),
         database: c.getOrThrow<string>('DB_NAME'),
         autoLoadEntities: true,
-        // Solo para desarrollo. En producción: migraciones y DB_SYNC=false.
+        // Solo para desarrollo. En producción: DB_SYNC=false (lo exige env.validation.ts) y migraciones.
         synchronize: c.get<string>('DB_SYNC') === 'true',
+        // Migraciones compiladas (dist/migrations). Con DB_MIGRAR=true se aplican las pendientes al iniciar.
+        migrations: [new URL('./migrations/*.js', import.meta.url).pathname],
+        migrationsRun: c.get<string>('DB_MIGRAR') === 'true',
       }),
     }),
     AuthModule,
@@ -39,9 +45,12 @@ import { TurnosModule } from './turnos/turnos.module.js';
     BecadosModule,
     CalendarioModule,
     TurnosModule,
+    TurnosDisponiblesModule,
     PedidosModule,
     PanelModule,
     InformesModule,
+    ProveedorModule,
+    NotificacionesModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

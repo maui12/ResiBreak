@@ -167,3 +167,14 @@
     height: 34px;
   }
 }
+
+/* Botón "Cerrar sesión": mismo aspecto que las opciones del menú */
+.sidebar-salir {
+  width: 100%;
+  margin-top: auto;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}

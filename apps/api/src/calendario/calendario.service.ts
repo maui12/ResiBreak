@@ -43,6 +43,10 @@ export class CalendarioService {
     return (await this.feriados.existsBy({ fecha })) ? '24h' : 'normal';
   }
 
+  esFeriado(fecha: string): Promise<boolean> {
+    return this.feriados.existsBy({ fecha });
+  }
+
   listarFeriados(anio: number) {
     return this.feriados
       .createQueryBuilder('f')

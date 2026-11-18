@@ -9,11 +9,13 @@ export class CalendarioController {
   constructor(private readonly calendario: CalendarioService) {}
 
   /** GET /api/calendario?anio=2026&mes=6 */
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get()
   mes(@Query() q: MesQueryDto) {
     return this.calendario.obtenerMes(q);
   }
 
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get('feriados')
   feriados(@Query() q: FeriadosQueryDto) {
     return this.calendario.listarFeriados(q.anio);

@@ -1,8 +1,16 @@
 import { useState, type SyntheticEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api, ApiError } from '../../utils/api';
+import { rutaInicial } from '../../utils/roles';
+import { cerrarSesion, guardarSesion } from '../../utils/sesion';
 import './Login.css';
-import logoUCN from "../../../../shared/assets/logoUCN.png";
-import logoFAMED from "../../../../shared/assets/logoFAMED.png";
+import logoUCN from '../../../../shared/assets/logoUCN.png';
+import logoFAMED from '../../../../shared/assets/logoFAMED.png';
+
+interface RespuestaLogin {
+  accessToken: string;
+  rol: string;
+}
 
 function Login() {
   const navigate = useNavigate();
@@ -10,16 +18,39 @@ function Login() {
   const [usuario, setUsuario] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
+  const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
 
-  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError('');
+    setCargando(true);
 
-    // Aquí conectaremos el formulario con el backend de autenticación.
-    // No redirigir al panel hasta validar las credenciales.
-    console.log('Formulario de inicio de sesión preparado', {
-      usuario,
-      contrasenaIngresada: contrasena.length > 0,
-    });
+    try {
+      // El backend espera { rut, password } y normaliza el RUT: acepta "12.345.678-5" o "12345678-5".
+      const { accessToken, rol } = await api<RespuestaLogin>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ rut: usuario.trim(), password: contrasena }),
+      });
+
+      const destino = rutaInicial(rol);
+      if (!destino) {
+        cerrarSesion();
+        setError(
+          rol === 'residente'
+            ? 'Los residentes ingresan desde la aplicación móvil.'
+            : 'Tu usuario no tiene una vista habilitada.',
+        );
+        return;
+      }
+
+      guardarSesion(accessToken, rol);
+      navigate(destino, { replace: true });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Error inesperado');
+    } finally {
+      setCargando(false);
+    }
   }
 
   return (
@@ -59,12 +90,12 @@ function Login() {
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-field">
-            <label htmlFor="usuario">Usuario</label>
+            <label htmlFor="usuario">RUT</label>
             <input
               id="usuario"
               name="usuario"
               type="text"
-              placeholder="Ingresa tu RUT o correo"
+              placeholder="Ej: 12.345.678-5"
               autoComplete="username"
               value={usuario}
               onChange={(event) => setUsuario(event.target.value)}
@@ -101,9 +132,9 @@ function Login() {
               </button>
             </div>
           </div>
-
-          <button className="login-submit" type="submit">
-            Iniciar sesión
+          {error && <p className="login-error" role="alert">{error}</p>}
+          <button className="login-submit" type="submit" disabled={cargando}>
+            {cargando ? 'Ingresando...' : 'Iniciar Sesión'}
           </button>
         </form>
 

@@ -8,11 +8,13 @@ import { PedidosService } from './pedidos.service.js';
 export class PedidosController {
   constructor(private readonly pedidos: PedidosService) {}
 
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get()
   listar(@Query() q: ListarPedidosQueryDto) {
     return this.pedidos.listar(q);
   }
 
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get('contabilidad')
   contabilidad(@Query() q: MesQueryDto) {
     return this.pedidos.contabilidad(q);

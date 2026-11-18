@@ -63,17 +63,9 @@ export function mesCorto(fecha: Date): string {
   return MESES_CORTOS[fecha.getMonth()];
 }
 
-/** Meses (anio, mes de 1 a 12) que toca el rango [desde, hasta]. */
-export function mesesQueCubre(desde: Date, hasta: Date): { anio: number; mes: number }[] {
-  const meses: { anio: number; mes: number }[] = [];
-  let cursor = new Date(desde.getFullYear(), desde.getMonth(), 1);
-  const ultimo = new Date(hasta.getFullYear(), hasta.getMonth(), 1);
-
-  while (cursor <= ultimo) {
-    meses.push({ anio: cursor.getFullYear(), mes: cursor.getMonth() + 1 });
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-  }
-  return meses;
+/** Suma días a una fecha AAAA-MM-DD y devuelve otra AAAA-MM-DD. */
+export function sumarDiasClave(clave: string, dias: number): string {
+  return claveFecha(sumarDias(fechaDesdeClave(clave), dias));
 }
 
 /** Cantidad de celdas vacías antes del día 1 (la semana empieza en lunes). `mes` va de 1 a 12. */
@@ -82,25 +74,38 @@ export function huecosInicioMes(anio: number, mes: number): number {
 }
 
 /* ------------------------------------------------------------------
-   Regla de anticipación mínima
+   Regla de anticipación (la misma del backend, common/fecha-chile.ts)
 
-   Es la misma que aplica el backend al crear un turno: el día se mide
-   desde las 00:00, así que un día solo se puede agendar si su inicio
-   queda a `anticipacionMinimaHoras` o más de distancia desde ahora.
+   Con `anticipacionMinimaDias` = 1: para el día D se puede agendar, cambiar
+   o cancelar hasta las 23:59 del día anterior (D-1). A las 00:00 del día D
+   ya no. Se calcula con días de calendario, así que los cambios de horario
+   no la afectan. El servidor es quien decide al final: esto solo sirve para
+   habilitar o deshabilitar días en pantalla.
 ------------------------------------------------------------------- */
 
-/** Primer instante en que se puede iniciar un turno: ahora + anticipación mínima. */
-export function momentoMinimoReserva(ahora: Date, anticipacionMinimaHoras: number): Date {
-  return new Date(ahora.getTime() + anticipacionMinimaHoras * 3_600_000);
+/** Primer día (a las 00:00) que todavía se puede agendar, cambiar o cancelar. */
+export function primerDiaReservable(ahora: Date, anticipacionMinimaDias: number): Date {
+  return sumarDias(inicioDelDia(ahora), anticipacionMinimaDias);
 }
 
-/** ¿El día (AAAA-MM-DD) empieza en o después del momento mínimo? */
-export function esFechaReservable(clave: string, minimo: Date): boolean {
-  return fechaDesdeClave(clave).getTime() >= minimo.getTime();
+/** ¿El día (AAAA-MM-DD) se puede agendar/cambiar/cancelar? Comparar AAAA-MM-DD como texto es seguro. */
+export function esFechaReservable(clave: string, primerDia: Date): boolean {
+  return clave >= claveFecha(primerDia);
 }
 
-/** Primer día completo que se puede agendar. */
-export function primerDiaReservable(minimo: Date): Date {
-  const dia = inicioDelDia(minimo);
-  return dia.getTime() === minimo.getTime() ? dia : sumarDias(dia, 1);
+/** Último día en que se puede modificar `clave` (a las 23:59). */
+export function ultimoDiaParaModificar(clave: string, anticipacionMinimaDias: number): Date {
+  return sumarDias(fechaDesdeClave(clave), -anticipacionMinimaDias);
+}
+
+/** "hasta las 23:59 del miércoles 11 de noviembre" */
+export function textoPlazo(clave: string, anticipacionMinimaDias: number): string {
+  return `hasta las 23:59 del ${formatoFechaLarga(ultimoDiaParaModificar(clave, anticipacionMinimaDias))}`;
+}
+
+/** Texto de ayuda de la regla, según la configuración. */
+export function textoRegla(anticipacionMinimaDias: number): string {
+  if (anticipacionMinimaDias === 0) return 'Puedes agendar, cambiar o cancelar hasta las 23:59 del mismo día.';
+  if (anticipacionMinimaDias === 1) return 'Puedes agendar, cambiar o cancelar hasta las 23:59 del día anterior.';
+  return `Puedes agendar, cambiar o cancelar hasta las 23:59 de ${anticipacionMinimaDias} días antes.`;
 }

@@ -9,11 +9,14 @@ import { CrearBecadoDto } from './dto/crear-becado.dto.js';
 export class BecadosController {
   constructor(private readonly becados: BecadosService) {}
 
+  /** GET /api/becados?anio&mes: becados activos con turnos, comidas y monto del mes. */
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get()
   listar(@Query() q: MesQueryDto) {
     return this.becados.listarConResumen(q);
   }
 
+  @Roles(Rol.ADMIN, Rol.CONSULTA)
   @Get(':id')
   obtener(@Param('id', ParseIntPipe) id: number) {
     return this.becados.obtener(id);

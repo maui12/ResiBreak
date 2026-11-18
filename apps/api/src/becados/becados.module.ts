@@ -6,9 +6,10 @@ import { Turno } from '../turnos/turno.entity.js';
 import { Becado } from './becado.entity.js';
 import { BecadosController } from './becados.controller.js';
 import { BecadosService } from './becados.service.js';
+import { Usuario } from '../auth/usuario.entity.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Becado, Turno, Pedido, Hospital])],
+  imports: [TypeOrmModule.forFeature([Becado, Turno, Pedido])],
   controllers: [BecadosController],
   providers: [BecadosService],
   exports: [TypeOrmModule],

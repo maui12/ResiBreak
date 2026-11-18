@@ -14,12 +14,15 @@ export type MenuSidebar = {
 export const MENU_ADMIN: MenuSidebar = {
   marca: 'Gestión de Residentes',
   submarca: 'Panel institucional',
+  // Mismas opciones que el boceto de la web (web/src/pages/Admin/Dashboard/AdminDashboard.tsx).
   opciones: [
-    { titulo: 'Panel', descripcion: 'Resumen general', icono: '⌂', ruta: '/' },
-    { titulo: 'Residentes', descripcion: 'Personas y turnos', icono: '♙', ruta: '/becados' },
-    { titulo: 'Pedidos', descripcion: 'Comidas y repartos', icono: '▤', ruta: '/pedidos' },
-    { titulo: 'Calendario', descripcion: 'Planificación de turnos', icono: '▦', ruta: '/calendario' },
-    { titulo: 'Configuración', descripcion: 'Reglas y costos', icono: '⚙', ruta: '/configuracion' },
+    { titulo: 'Panel', descripcion: 'Métricas de pedidos y becados', icono: '⌂', ruta: '/admin/panelAdmin' },
+    { titulo: 'Calendario', descripcion: 'Planificación de turnos', icono: '▦', ruta: '/admin/calendario' },
+    { titulo: 'Becados', descripcion: 'Personas y turnos', icono: '♙', ruta: '/admin/becados' },
+    { titulo: 'Pedidos', descripcion: 'Comidas y repartos', icono: '▤', ruta: '/admin/pedidos' },
+    { titulo: 'Informes', descripcion: 'Reportes por hospital', icono: '▥', ruta: '/admin/informes' },
+    { titulo: 'Notificaciones', descripcion: 'Pedidos cancelados por becados', icono: '🔔', ruta: '/admin/notificaciones' },
+    { titulo: 'Configuración', descripcion: 'Reglas y costos', icono: '⚙', ruta: '/admin/configuracion' },
   ],
 };
 
@@ -41,9 +44,15 @@ export const MENU_RESIDENTE: MenuSidebar = {
     },
     {
       titulo: 'Cambiar un pedido',
-      descripcion: 'Modifica un pedido agendado',
+      descripcion: 'Hospital, turno o fecha',
       icono: '⇄',
       ruta: '/becado/cambiarPedido',
+    },
+    {
+      titulo: 'Cancelar un pedido',
+      descripcion: 'Hasta las 23:59 del día anterior',
+      icono: '✕',
+      ruta: '/becado/cancelarPedido',
     },
   ],
 };
