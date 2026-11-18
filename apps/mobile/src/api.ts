@@ -92,7 +92,23 @@ export async function peticion<T>(ruta: string, opciones: OpcionesPeticion = {})
 
   if (!respuesta.ok) {
     const cuerpoError: unknown = await respuesta.json().catch(() => null);
+<<<<<<< Updated upstream
     throw new ApiError(respuesta.status, mensajeSegunRespuesta(respuesta.status, cuerpoError));
+=======
+
+    // Token vencido o inválido: se cierra la sesión y se vuelve al login.
+    if (respuesta.status === 401 && token) {
+      cerrarSesion();
+      router.replace('/login');
+    }
+
+    const mensaje =
+      // En el login, el 401 son credenciales malas: se muestra el mensaje del servidor.
+      respuesta.status === 401 && !token
+        ? (mensajeDelServidor(cuerpoError) ?? 'Credenciales inválidas.')
+        : mensajeSegunRespuesta(respuesta.status, cuerpoError);
+    throw new ApiError(respuesta.status, mensaje);
+>>>>>>> Stashed changes
   }
 
   if (respuesta.status === 204) return undefined as T;

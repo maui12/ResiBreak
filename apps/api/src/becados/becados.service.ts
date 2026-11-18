@@ -1,31 +1,27 @@
-import { Injectable, Logger, NotFoundException, type OnApplicationBootstrap } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { MesQueryDto } from '../common/dto/mes-query.dto.js';
 import { rangoMes } from '../common/fechas.js';
-import { Hospital } from '../hospitales/hospital.entity.js';
 import { Pedido } from '../pedidos/pedido.entity.js';
 import { Turno } from '../turnos/turno.entity.js';
 import { Becado } from './becado.entity.js';
 import type { ActualizarBecadoDto } from './dto/actualizar-becado.dto.js';
 import type { CrearBecadoDto } from './dto/crear-becado.dto.js';
+import { Usuario } from '../auth/usuario.entity.js';
 
 /** RUT del residente de prueba (válido). La app móvil lo busca por este RUT en el login de demostración. */
 export const RUT_RESIDENTE_DEMO = '11111111-1';
 
 @Injectable()
-export class BecadosService implements OnApplicationBootstrap {
-  private readonly logger = new Logger(BecadosService.name);
-
+export class BecadosService {
   constructor(
-    private readonly config: ConfigService,
-    @InjectRepository(Hospital) private readonly hospitales: Repository<Hospital>,
     @InjectRepository(Becado) private readonly repo: Repository<Becado>,
     @InjectRepository(Turno) private readonly turnos: Repository<Turno>,
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
   ) {}
 
+<<<<<<< Updated upstream
   /**
    * Crea un residente de prueba si SEED_DEMO=true. Se hace en onApplicationBootstrap (y no en
    * onModuleInit) para que los hospitales iniciales ya existan. Nunca corre en producción.
@@ -52,6 +48,9 @@ export class BecadosService implements OnApplicationBootstrap {
     this.logger.log(`Residente de prueba creado (RUT ${RUT_RESIDENTE_DEMO})`);
   }
 
+=======
+  
+>>>>>>> Stashed changes
   /** Becados activos con su resumen del mes (la forma que usa la pantalla "Becados"). */
   async listarConResumen(q: MesQueryDto) {
     const { desde, hasta } = rangoMes(q.anio, q.mes);

@@ -10,6 +10,21 @@ import { Hospital } from './../hospitales/hospital.entity.js';
 import type { CambiarEstadoDto, CrearPedidoDto, ListarPedidosQueryDto } from './dto/pedidos.dto.js';
 import { Pedido } from './pedido.entity.js';
 
+<<<<<<< Updated upstream
+=======
+/** Una fila de la pantalla "Pedidos": todas las comidas de un becado en un día. */
+interface PedidoDelDia {
+  becadoId: number;
+  becado: string;
+  hospital: string;
+  hospitalId: number;
+  fecha: string;
+  dia: number;
+  comidas: TipoComida[];
+  estado: EstadoPedido;
+}
+
+>>>>>>> Stashed changes
 @Injectable()
 export class PedidosService {
   constructor(
@@ -30,7 +45,6 @@ export class PedidosService {
       this.repo.create({
         becadoId: dto.becadoId,
         fecha: dto.fecha,
-        hospitalId: dto.hospitalId ?? null,
         tipoComida: tipo,
         valorUnitario: config[CAMPO_COSTO[tipo]],
       }),

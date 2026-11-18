@@ -9,6 +9,10 @@ export class Becado {
   @Column({ type: 'varchar', length: 120 })
   nombre: string;
 
+<<<<<<< Updated upstream
+=======
+  /** RUT normalizado (12345678-5). Nullable solo para las fichas creadas antes de este campo. */
+>>>>>>> Stashed changes
   @Column({ type: 'varchar', length: 12, unique: true, nullable: true })
   rut: string | null;
 

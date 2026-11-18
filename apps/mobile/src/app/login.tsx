@@ -26,6 +26,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [entrando, setEntrando] = useState(false);
 
+<<<<<<< Updated upstream
   const RUTAS: Record<RolDemo, '/becado/panelBecado' | '/admin/panelAdmin' | '/proveedor/panelProveedor'> = {
     residente: '/becado/panelBecado',
     admin: '/admin/panelAdmin',
@@ -51,6 +52,13 @@ export default function Login() {
 
     if (!usuarioIngresado || !contrasena) {
       setError('Ingresa tu usuario y contraseña.');
+=======
+  async function handleSubmit() {
+    if (entrando) return;
+
+    if (!usuario.trim() || !contrasena) {
+      setError('Ingresa tu RUT y contraseña.');
+>>>>>>> Stashed changes
       return;
     }
 
