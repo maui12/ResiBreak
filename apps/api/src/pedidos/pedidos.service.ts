@@ -7,24 +7,9 @@ import type { MesQueryDto } from './../common/dto/mes-query.dto.js';
 import { rangoMes } from './../common/fechas.js';
 import { ConfiguracionService } from './../configuracion/configuracion.service.js';
 import { Hospital } from './../hospitales/hospital.entity.js';
-import { Hospital } from './../hospitales/hospital.entity.js';
 import type { CambiarEstadoDto, CrearPedidoDto, ListarPedidosQueryDto } from './dto/pedidos.dto.js';
 import { Pedido } from './pedido.entity.js';
 
-/** Una fila de la pantalla "Pedidos": todas las comidas de un becado en un día. */
-export interface PedidoDelDia {
-  becadoId: number;
-  becado: string;
-  hospital: string;
-  hospitalId: number;
-  fecha: string;
-  dia: number;
-  comidas: TipoComida[];
-  estado: EstadoPedido;
-}
-
-<<<<<<< Updated upstream
-=======
 /** Una fila de la pantalla "Pedidos": todas las comidas de un becado en un día. */
 interface PedidoDelDia {
   becadoId: number;
@@ -37,7 +22,6 @@ interface PedidoDelDia {
   estado: EstadoPedido;
 }
 
->>>>>>> Stashed changes
 @Injectable()
 export class PedidosService {
   constructor(

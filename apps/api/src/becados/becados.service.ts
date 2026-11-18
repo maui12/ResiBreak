@@ -10,9 +10,6 @@ import type { ActualizarBecadoDto } from './dto/actualizar-becado.dto.js';
 import type { CrearBecadoDto } from './dto/crear-becado.dto.js';
 import { Usuario } from '../auth/usuario.entity.js';
 
-/** RUT del residente de prueba (válido). La app móvil lo busca por este RUT en el login de demostración. */
-export const RUT_RESIDENTE_DEMO = '11111111-1';
-
 @Injectable()
 export class BecadosService {
   constructor(
@@ -22,9 +19,7 @@ export class BecadosService {
     @InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
   ) {}
 
-=======
   
->>>>>>> Stashed changes
   /** Becados activos con su resumen del mes (la forma que usa la pantalla "Becados"). */
   async listarConResumen(q: MesQueryDto) {
     const { desde, hasta } = rangoMes(q.anio, q.mes);
