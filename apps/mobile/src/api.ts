@@ -6,11 +6,13 @@ import { cerrarSesion, obtenerToken } from './sesion';
  * Dirección del backend.
  * En un celular físico NO sirve "localhost": hay que usar la IP de tu computador
  * en la red WiFi (ej. http://192.168.1.50:3000/api). Se configura en mobile/.env:
+ * en la red WiFi (ej. http://192.168.1.50:3000/api). Se configura en mobile/.env:
  *
  *   EXPO_PUBLIC_API_URL=http://192.168.1.50:3000/api
  *
  * (Emulador Android: http://10.0.2.2:3000/api — Simulador iOS: http://localhost:3000/api)
  */
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 
 export type TipoDia = 'normal' | '24h';
@@ -100,26 +102,8 @@ export async function peticion<T>(ruta: string, opciones: OpcionesPeticion = {})
   }
 
   if (!respuesta.ok) {
-    const cuerpoError: unknown = await respuesta.json().catch(() => null);
-
-    // Token vencido o inválido: se cierra la sesión y se vuelve al login.
-    if (respuesta.status === 401 && token) {
-      cerrarSesion();
-      router.replace('/login');
-    }
-
-    const mensaje =
-      // En el login, el 401 son credenciales malas: se muestra el mensaje del servidor.
-      respuesta.status === 401 && !token
-        ? (mensajeDelServidor(cuerpoError) ?? 'Credenciales inválidas.')
-        : mensajeSegunRespuesta(respuesta.status, cuerpoError);
-    throw new ApiError(respuesta.status, mensaje);
+    throw new Error(`No se pudo cargar el calendario (error ${respuesta.status})`);
   }
 
-  if (respuesta.status === 204) return undefined as T;
-  return (await respuesta.json()) as T;
-}
-
-export function obtenerCalendario(anio: number, mes: number): Promise<MesCalendario> {
-  return peticion<MesCalendario>('/calendario', { consulta: { anio, mes } });
+  return respuesta.json();
 }

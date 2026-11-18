@@ -1,25 +1,29 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, type OnApplicationBootstrap } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { MesQueryDto } from '../common/dto/mes-query.dto.js';
 import { rangoMes } from '../common/fechas.js';
+import { Hospital } from '../hospitales/hospital.entity.js';
 import { Pedido } from '../pedidos/pedido.entity.js';
 import { Turno } from '../turnos/turno.entity.js';
 import { Becado } from './becado.entity.js';
 import type { ActualizarBecadoDto } from './dto/actualizar-becado.dto.js';
 import type { CrearBecadoDto } from './dto/crear-becado.dto.js';
-import { Usuario } from '../auth/usuario.entity.js';
 
 @Injectable()
-export class BecadosService {
+export class BecadosService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(BecadosService.name);
+
   constructor(
+    private readonly config: ConfigService,
+    @InjectRepository(Hospital) private readonly hospitales: Repository<Hospital>,
     @InjectRepository(Becado) private readonly repo: Repository<Becado>,
     @InjectRepository(Turno) private readonly turnos: Repository<Turno>,
     @InjectRepository(Pedido) private readonly pedidos: Repository<Pedido>,
     @InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
   ) {}
 
-  
   /** Becados activos con su resumen del mes (la forma que usa la pantalla "Becados"). */
   async listarConResumen(q: MesQueryDto) {
     const { desde, hasta } = rangoMes(q.anio, q.mes);

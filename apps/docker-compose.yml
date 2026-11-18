@@ -23,6 +23,7 @@ services:
       POSTGRES_DB: ${DB_NAME:?Falta DB_NAME en apps/.env}
       TZ: America/Santiago
     ports:
+      - "5433:5432"
       - "127.0.0.1:${DB_PUERTO_LOCAL:-5433}:5432" # solo para desarrollo local; no es público
     volumes:
       - pgdata:/var/lib/postgresql/data

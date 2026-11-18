@@ -7,6 +7,7 @@ import type { MesQueryDto } from './../common/dto/mes-query.dto.js';
 import { rangoMes } from './../common/fechas.js';
 import { ConfiguracionService } from './../configuracion/configuracion.service.js';
 import { Hospital } from './../hospitales/hospital.entity.js';
+import { Hospital } from './../hospitales/hospital.entity.js';
 import type { CambiarEstadoDto, CrearPedidoDto, ListarPedidosQueryDto } from './dto/pedidos.dto.js';
 import { Pedido } from './pedido.entity.js';
 
@@ -43,6 +44,7 @@ export class PedidosService {
         becadoId: dto.becadoId,
         hospitalId: dto.hospitalId,
         fecha: dto.fecha,
+        hospitalId: dto.hospitalId ?? null,
         tipoComida: tipo,
         valorUnitario: config[CAMPO_COSTO[tipo]],
       }),

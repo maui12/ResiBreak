@@ -27,6 +27,29 @@ export default function Login() {
   const [error, setError] = useState('');
   const [entrando, setEntrando] = useState(false);
 
+  const RUTAS: Record<RolDemo, '/becado/panelBecado' | '/admin/panelAdmin' | '/proveedor/panelProveedor'> = {
+    residente: '/becado/panelBecado',
+    admin: '/admin/panelAdmin',
+    proveedor: '/proveedor/panelProveedor',
+  };
+
+  async function entrarComo(rol: RolDemo) {
+    if (entrando) return;
+    setError('');
+    setEntrando(true);
+    try {
+      await iniciarSesionDemo(rol);
+      router.replace(RUTAS[rol]);
+    } catch (e) {
+      setError(mensajeDeLogin(e));
+    } finally {
+      setEntrando(false);
+    }
+  }
+
+  const [error, setError] = useState('');
+  const [entrando, setEntrando] = useState(false);
+
   async function handleSubmit() {
     if (entrando) return;
 

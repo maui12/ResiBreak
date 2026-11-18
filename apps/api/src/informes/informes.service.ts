@@ -40,12 +40,12 @@ export class InformesService {
         .getRawMany<{ hospitalId: number; turnos: string }>(),
       this.pedidos
         .createQueryBuilder('p')
-        .select('p.hospitalId', 'hospitalId')
+        .select('b.hospitalId', 'hospitalId')
         .addSelect('COUNT(*)', 'comidas')
         .addSelect('COALESCE(SUM(p.valorUnitario), 0)', 'monto')
         .where('p.fecha >= :desde AND p.fecha <= :hasta', params)
         .andWhere('p.estado <> :cancelado')
-        .groupBy('p.hospitalId')
+        .groupBy('b.hospitalId')
         .getRawMany<{ hospitalId: number; comidas: string; monto: string }>(),
     ]);
 
