@@ -220,3 +220,37 @@ export function actualizarTipoTurno(id: number, datos: Partial<DatosTipoTurno>):
 export function eliminarTipoTurno(id: number): Promise<void> {
   return peticion<void>(`/turnos-disponibles/${id}`, { metodo: 'DELETE' });
 }
+
+/* --------------------------------- Informes -------------------------------- */
+
+/** Totales de un tipo de comida en un hospital, con las confirmaciones de entrega. */
+export interface InformeComida {
+  tipoComida: TipoComida;
+  programadas: number;
+  entregadasProveedor: number;
+  confirmadasResidente: number;
+  conciliadas: number;
+  montoProgramado: number;
+  montoConciliado: number;
+}
+
+/** Una fila de GET /informes/hospitales (los pedidos cancelados no cuentan). */
+export interface InformeHospital {
+  hospital: string;
+  turnos: number;
+  comidas: number;
+  monto: number;
+  /** Marcadas como entregadas por el proveedor. */
+  entregadas: number;
+  /** Confirmadas por el residente. */
+  recibidas: number;
+  /** Con las dos confirmaciones. */
+  conciliadas: number;
+  montoConciliado: number;
+  porTipo: InformeComida[];
+}
+
+/** Turnos, comidas y montos por hospital de entrega entre dos fechas AAAA-MM-DD (incluidas). */
+export function obtenerInformeHospitales(desde: string, hasta: string): Promise<InformeHospital[]> {
+  return peticion<InformeHospital[]>('/informes/hospitales', { consulta: { desde, hasta } });
+}
