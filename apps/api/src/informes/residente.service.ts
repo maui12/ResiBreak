@@ -7,26 +7,37 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, DataSource, In, LessThan, MoreThanOrEqual, Not, Repository } from 'typeorm';
+import { Between, DataSource, In, IsNull, LessThan, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { Becado } from '../becados/becado.entity.js';
 import { CalendarioService } from '../calendario/calendario.service.js';
 import { CAMPO_COSTO, TIPOS_COMIDA, type TipoComida } from '../common/comidas.js';
 import type { MesQueryDto } from '../common/dto/mes-query.dto.js';
-import { cumpleAnticipacion, esFechaValida, hoyChile, mensajePlazo, primerDiaPermitido, sumarDias } from '../common/fecha-chile.js';
+import {
+  cumpleAnticipacion,
+  esFechaValida,
+  hoyChile,
+  mensajePlazo,
+  primerDiaPermitido,
+  sumarDias,
+  ultimoDiaDelMes,
+} from '../common/fecha-chile.js';
 import { pad, rangoMes } from '../common/fechas.js';
 import type { Configuracion } from '../configuracion/configuracion.entity.js';
 import { ConfiguracionService } from '../configuracion/configuracion.service.js';
 import { Hospital } from '../hospitales/hospital.entity.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
+import { conciliar } from '../pedidos/conciliacion.js';
 import { Pedido } from '../pedidos/pedido.entity.js';
 import { Turno } from '../turnos/turno.entity.js';
 import { motivoNoDisponible } from '../turnos-disponibles/disponibilidad.js';
 import type { TurnoDisponible } from '../turnos-disponibles/turno-disponible.entity.js';
 import { TurnosDisponiblesService } from '../turnos-disponibles/turnos-disponibles.service.js';
-import type { AgendarPedidoDto, ReprogramarPedidoDto } from './dto/residente.dto.js';
+import type { AgendarPedidoDto, RecepcionesQueryDto, ReprogramarPedidoDto } from './dto/residente.dto.js';
 
 const DIAS_TURNOS_ADELANTE = 14;
 const MAX_DIAS_ANTICIPACION = 30;
+/** El residente puede confirmar que recibió una comida hasta 7 días después (por si lo olvidó ese día). */
+export const DIAS_PARA_CONFIRMAR = 7;
 
 /**
  * Todo lo que hace el residente. El becadoId siempre viene del JWT, nunca del cliente.
@@ -41,6 +52,8 @@ const MAX_DIAS_ANTICIPACION = 30;
  *  - No se agenda más allá de MAX_DIAS_ANTICIPACION días.
  *  - Un pedido por día; el hospital de entrega se elige en cada pedido.
  *  - Un pedido con comidas ya entregadas no se puede cambiar ni cancelar.
+ *  - El residente confirma en su cuenta cada comida que recibe (el mismo día o hasta
+ *    DIAS_PARA_CONFIRMAR días después). Su confirmación es independiente de la del proveedor.
  */
 @Injectable()
 export class ResidenteService {
@@ -361,6 +374,74 @@ export class ResidenteService {
     return { fecha, estado: 'cancelado' as const, comidas, administracionNotificada: true };
   }
 
+  /* --------------------------- Confirmación de recepción --------------------------- */
+
+  /**
+   * El residente confirma que recibió una comida. Un solo UPDATE con todas las condiciones:
+   * que sea suya, que no esté cancelada, que no la haya confirmado antes y que sea de hoy o de
+   * los últimos DIAS_PARA_CONFIRMAR días (no se confirma algo que aún no debía llegar).
+   */
+  async confirmarRecepcion(becadoId: number | null, pedidoId: number) {
+    const becado = await this.becadoDe(becadoId);
+    const hoy = hoyChile();
+    const resultado = await this.pedidos.update(
+      {
+        id: pedidoId,
+        becadoId: becado.id,
+        estado: Not('cancelado'),
+        recibidoEn: IsNull(),
+        fecha: Between(sumarDias(hoy, -DIAS_PARA_CONFIRMAR), hoy),
+      },
+      { recibidoEn: new Date() },
+    );
+
+    if (!resultado.affected) {
+      const pedido = await this.pedidos.findOneBy({ id: pedidoId, becadoId: becado.id });
+      if (!pedido) throw new NotFoundException('Pedido no encontrado');
+      if (pedido.estado === 'cancelado') throw new BadRequestException('La comida está cancelada');
+      if (pedido.recibidoEn) throw new ConflictException('Ya confirmaste esta comida');
+      if (pedido.fecha > hoy) throw new BadRequestException('Solo puedes confirmar comidas de hoy o de días anteriores');
+      throw new BadRequestException(`Solo se pueden confirmar comidas de los últimos ${DIAS_PARA_CONFIRMAR} días`);
+    }
+
+    const pedido = await this.pedidos.findOneOrFail({ where: { id: pedidoId }, relations: { hospital: true, turnoDisponible: true } });
+    this.logger.log(`Becado ${becado.id} confirmó la recepción del pedido ${pedidoId}`);
+    return this.aRespuesta(pedido);
+  }
+
+  /**
+   * Lo que el residente tiene por confirmar (hoy y los últimos días) y sus totales del mes por
+   * tipo de comida: cuántas confirmó él, cuántas el proveedor y cuántas ambos, con sus montos.
+   */
+  async recepciones(becadoId: number | null, q: RecepcionesQueryDto) {
+    const becado = await this.becadoDe(becadoId);
+    const hoy = hoyChile();
+    const anio = q.anio ?? Number(hoy.slice(0, 4));
+    const mes = q.mes ?? Number(hoy.slice(5, 7));
+    const desde = `${anio}-${pad(mes)}-01`;
+    const hasta = `${anio}-${pad(mes)}-${pad(ultimoDiaDelMes(anio, mes))}`;
+
+    const [porConfirmar, totales] = await Promise.all([
+      this.pedidos.find({
+        where: {
+          becadoId: becado.id,
+          estado: Not('cancelado'),
+          recibidoEn: IsNull(),
+          fecha: Between(sumarDias(hoy, -DIAS_PARA_CONFIRMAR), hoy),
+        },
+        relations: { hospital: true, turnoDisponible: true },
+      }),
+      conciliar(this.pedidos, desde, hasta, becado.id),
+    ]);
+
+    return {
+      hoy,
+      diasParaConfirmar: DIAS_PARA_CONFIRMAR,
+      porConfirmar: this.ordenar(porConfirmar).map((p) => this.aRespuesta(p)),
+      totales,
+    };
+  }
+
   /* ------------------------------- Ayudantes ------------------------------- */
 
   /** El becadoId viene del JWT. Igual se confirma en BD que la ficha siga activa. */
@@ -418,6 +499,7 @@ export class ResidenteService {
         estado: 'pendiente' as const,
         entregadoEn: null,
         entregadoPorId: null,
+        recibidoEn: null,
         hospitalId: destino.hospitalId,
         turnoDisponibleId: destino.turnoDisponibleId,
         valorUnitario,
@@ -445,6 +527,11 @@ export class ResidenteService {
       fecha: p.fecha,
       tipoComida: p.tipoComida,
       estado: p.estado,
+      /** Confirmación del proveedor (la comida se marcó como entregada). */
+      entregadoProveedor: p.estado === 'entregado',
+      /** Confirmación del propio residente. */
+      recibido: p.recibidoEn !== null,
+      recibidoEn: p.recibidoEn,
       hospitalId: p.hospitalId,
       hospital: p.hospital?.nombre ?? null,
       turnoDisponible: turno

@@ -46,6 +46,8 @@ export default function PanelResidenteScreen() {
   const pedidosSemana = (datos?.pedidos ?? []).filter((p) => ultimaFecha !== undefined && p.fecha <= ultimaFecha);
   const totalComidas = pedidosSemana.reduce((total, p) => total + p.comidas.length, 0);
   const proximo = pedidosSemana[0]?.fecha;
+  // Comidas de hoy que el residente aún no confirma haber recibido.
+  const porConfirmarHoy = (pedidoPorFecha.get(claveHoy ?? '')?.comidas ?? []).filter((c) => !c.recibido).length;
 
   const iniciales = (datos?.residente.nombre ?? '')
     .split(' ')
@@ -95,6 +97,19 @@ export default function PanelResidenteScreen() {
                   <Text style={styles.resumenDetalle}>{proximo ? 'Pedido' : 'Sin pedidos'}</Text>
                 </View>
               </View>
+
+              {porConfirmarHoy > 0 && (
+                <Pressable
+                  onPress={() => router.navigate('/becado/confirmarRecepcion')}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.avisoRecepcion, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={styles.avisoRecepcionTitulo}>
+                    {porConfirmarHoy === 1 ? 'Tienes 1 comida de hoy por confirmar' : `Tienes ${porConfirmarHoy} comidas de hoy por confirmar`}
+                  </Text>
+                  <Text style={styles.avisoRecepcionTexto}>Cuando la recibas, toca aquí para confirmarla ›</Text>
+                </Pressable>
+              )}
 
               {/* Lista por día */}
               <Text style={styles.seccionTitulo} accessibilityRole="header">
@@ -161,6 +176,7 @@ export default function PanelResidenteScreen() {
                                 <Text style={styles.comidaTexto}>
                                   {comida.estado === 'entregado' ? '✓ ' : ''}
                                   {NOMBRE_COMIDA[comida.tipoComida]}
+                                  {comida.recibido ? ' · recibida' : ''}
                                 </Text>
                               </View>
                             ))}
@@ -205,6 +221,16 @@ export default function PanelResidenteScreen() {
 }
 
 const styles = StyleSheet.create({
+  avisoRecepcion: {
+    gap: 4,
+    padding: 14,
+    borderRadius: Radios.md,
+    borderWidth: 1,
+    borderColor: Colors.admin.verde,
+    backgroundColor: 'rgba(26, 148, 43, 0.18)',
+  },
+  avisoRecepcionTitulo: { color: Colors.white, fontSize: 15, fontWeight: '800' },
+  avisoRecepcionTexto: { color: Colors.admin.texto, fontSize: 12 },
   contenido: {
     gap: Spacing.md,
     padding: Spacing.md,

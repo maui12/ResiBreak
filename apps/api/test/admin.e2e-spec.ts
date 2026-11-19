@@ -117,7 +117,7 @@ describe('Configuración y panel del administrador (e2e)', () => {
     const almuerzos = await app
       .get(DataSource)
       .getRepository(Pedido)
-      .find({ where: { tipoComida: 'almuerzo' }, order: { fecha: 'ASC' } });
+      .find({where: { tipoComida: 'almuerzo' }, order: { fecha: 'ASC' } });
     expect(almuerzos.map((p) => [p.fecha, p.valorUnitario])).toEqual([
       [dia1, 6500],
       [dia2, 7000],

@@ -1,4 +1,5 @@
-import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { FechaISO } from '../../common/validators.js';
 
 /*
@@ -55,4 +56,13 @@ export class CancelarPedidoDto {
   /** Opcional: se muestra a administración en la notificación. */
   @IsOptional() @IsString() @MaxLength(200)
   motivo?: string;
+}
+
+/** GET /api/residente/recepciones?anio&mes (por defecto, el mes en curso). */
+export class RecepcionesQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(2000) @Max(2100)
+  anio?: number;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(12)
+  mes?: number;
 }

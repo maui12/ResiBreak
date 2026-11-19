@@ -208,6 +208,58 @@ export default function PanelAdminScreen() {
                   </View>
                 </View>
               </View>
+
+              {/* Entregas confirmadas: proveedor y residente */}
+              {datos.conciliacion && (
+                <View style={styles.tarjeta}>
+                  <Text style={styles.tarjetaTitulo} accessibilityRole="header">
+                    Entregas confirmadas
+                  </Text>
+                  <Text style={styles.tarjetaNota}>
+                    Proveedor: marcadas como entregadas. Residente: confirmadas en su cuenta. Ambos: con las dos confirmaciones
+                    (el monto suma cada comida con su precio).
+                  </Text>
+
+                  <View style={styles.tabla}>
+                    <View style={[styles.tablaFila, styles.tablaCabecera]}>
+                      <Text style={[styles.tablaCelda, styles.tablaCabeceraTexto, styles.tablaRubro]}>Comida</Text>
+                      <Text style={[styles.tablaCelda, styles.tablaCabeceraTexto, styles.tablaNumero]}>Proveedor</Text>
+                      <Text style={[styles.tablaCelda, styles.tablaCabeceraTexto, styles.tablaNumero]}>Residente</Text>
+                      <Text style={[styles.tablaCelda, styles.tablaCabeceraTexto, styles.tablaNumero]}>Ambos</Text>
+                      <Text style={[styles.tablaCelda, styles.tablaCabeceraTexto, styles.tablaNumero]}>Monto</Text>
+                    </View>
+                    {datos.conciliacion.porTipo.map((fila) => (
+                      <View
+                        key={fila.tipoComida}
+                        style={styles.tablaFila}
+                        accessible
+                        accessibilityLabel={`${NOMBRE_COMIDA[fila.tipoComida]}: ${fila.entregadasProveedor} entregadas por el proveedor, ${fila.confirmadasResidente} confirmadas por residentes, ${fila.conciliadas} con ambas, ${formatoPesos(fila.montoConciliado)}`}
+                      >
+                        <Text style={[styles.tablaCelda, styles.tablaRubro]}>{NOMBRE_COMIDA[fila.tipoComida]}</Text>
+                        <Text style={[styles.tablaCelda, styles.tablaNumero]}>{formatoNumero(fila.entregadasProveedor)}</Text>
+                        <Text style={[styles.tablaCelda, styles.tablaNumero]}>{formatoNumero(fila.confirmadasResidente)}</Text>
+                        <Text style={[styles.tablaCelda, styles.tablaNumero]}>{formatoNumero(fila.conciliadas)}</Text>
+                        <Text style={[styles.tablaCelda, styles.tablaNumero]}>{formatoPesos(fila.montoConciliado)}</Text>
+                      </View>
+                    ))}
+                    <View style={[styles.tablaFila, styles.tablaTotal]}>
+                      <Text style={[styles.tablaCelda, styles.tablaRubro, styles.tablaTotalTexto]}>Total</Text>
+                      <Text style={[styles.tablaCelda, styles.tablaNumero, styles.tablaTotalTexto]}>
+                        {formatoNumero(datos.conciliacion.total.entregadasProveedor)}
+                      </Text>
+                      <Text style={[styles.tablaCelda, styles.tablaNumero, styles.tablaTotalTexto]}>
+                        {formatoNumero(datos.conciliacion.total.confirmadasResidente)}
+                      </Text>
+                      <Text style={[styles.tablaCelda, styles.tablaNumero, styles.tablaTotalTexto]}>
+                        {formatoNumero(datos.conciliacion.total.conciliadas)}
+                      </Text>
+                      <Text style={[styles.tablaCelda, styles.tablaNumero, styles.tablaTotalTexto]}>
+                        {formatoPesos(datos.conciliacion.total.montoConciliado)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
             </>
           )}
         </EstadoCarga>

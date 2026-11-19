@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { JwtPayload } from '../auth/jwt-payload.js';
 import { MesQueryDto } from '../common/dto/mes-query.dto.js';
@@ -8,6 +8,7 @@ import {
   AgendarPedidoDto,
   CancelarPedidoDto,
   ListarPedidosResidenteQueryDto,
+  RecepcionesQueryDto,
   ReprogramarPedidoDto,
 } from './dto/residente.dto.js';
 import { ResidenteService } from './residente.service.js';
@@ -54,6 +55,19 @@ export class ResidenteController {
   @Put('pedidos/reprogramar')
   reprogramar(@UsuarioActual() u: JwtPayload, @Body() dto: ReprogramarPedidoDto) {
     return this.residente.reprogramar(u.becadoId, dto);
+  }
+
+  /** GET /api/residente/recepciones?anio&mes: comidas por confirmar y totales del mes por tipo de comida. */
+  @Get('recepciones')
+  recepciones(@UsuarioActual() u: JwtPayload, @Query() q: RecepcionesQueryDto) {
+    return this.residente.recepciones(u.becadoId, q);
+  }
+
+  /** PATCH /api/residente/pedidos/:id/recibido: el residente confirma que recibió esa comida. */
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Patch('pedidos/:id/recibido')
+  confirmarRecepcion(@UsuarioActual() u: JwtPayload, @Param('id', ParseIntPipe) id: number) {
+    return this.residente.confirmarRecepcion(u.becadoId, id);
   }
 
   /** PATCH /api/residente/pedidos/cancelar  { fecha, motivo? }: cancela el pedido del día y avisa a administración. */

@@ -3,8 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Becado } from '../becados/becado.entity.js';
 import type { MesQueryDto } from '../common/dto/mes-query.dto.js';
+import { sumarDias } from '../common/fecha-chile.js';
 import { rangoMes } from '../common/fechas.js';
 import { ConfiguracionService } from '../configuracion/configuracion.service.js';
+import { conciliar } from '../pedidos/conciliacion.js';
 import { Pedido } from '../pedidos/pedido.entity.js';
 import { PedidosService } from '../pedidos/pedidos.service.js';
 import { Turno } from '../turnos/turno.entity.js';
@@ -39,6 +41,7 @@ export class PanelService {
       sobreLimite,
       porEspecialidad,
       contabilidad,
+      conciliacion,
     ] = await Promise.all([
       pedidosMes().select('COALESCE(SUM(p.valorUnitario), 0)', 'total').getRawOne<{ total: string }>(),
       pedidosMes().getCount(),
@@ -60,6 +63,8 @@ export class PanelService {
         .orderBy('COUNT(*)', 'DESC')
         .getRawMany<{ especialidad: string; cantidad: string }>(),
       this.pedidosService.contabilidad(q),
+      // rangoMes entrega `hasta` exclusivo (1° del mes siguiente); conciliar usa fechas incluidas.
+      conciliar(this.pedidos, desde, sumarDias(hasta, -1)),
     ]);
 
     return {
@@ -71,6 +76,8 @@ export class PanelService {
       maxTurnosMes: config.maxTurnosMes,
       comidasPorEspecialidad: porEspecialidad.map((f) => ({ especialidad: f.especialidad, cantidad: Number(f.cantidad) })),
       contabilidad,
+      /** Entregas confirmadas por proveedor, residente y ambos, por tipo de comida y con montos. */
+      conciliacion,
     };
   }
 }

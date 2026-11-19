@@ -54,5 +54,21 @@ export const MENU_RESIDENTE: MenuSidebar = {
       icono: '✕',
       ruta: '/becado/cancelarPedido',
     },
+    {
+      titulo: 'Confirmar recepción',
+      descripcion: 'Avisa que recibiste tus comidas',
+      icono: '✓',
+      ruta: '/becado/confirmarRecepcion',
+    },
+  ],
+};
+
+export const MENU_PROVEEDOR: MenuSidebar = {
+  marca: 'ResiBreak',
+  submarca: 'Reparto de alimentación',
+  opciones: [
+    { titulo: 'Próximos días', descripcion: 'Comidas a preparar por día', icono: '⌂', ruta: '/proveedor/panelProveedor' },
+    { titulo: 'Pedidos pendientes', descripcion: 'A quién y dónde entregar', icono: '☰', ruta: '/proveedor/pendientes' },
+    { titulo: 'Totales del mes', descripcion: 'Entregas confirmadas por comida', icono: '∑', ruta: '/proveedor/totales' },
   ],
 };

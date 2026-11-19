@@ -52,11 +52,20 @@ export class Pedido {
   @Column({ type: 'varchar', length: 20, default: 'pendiente' })
   estado: EstadoPedido;
 
+  /** Confirmación del PROVEEDOR: cuándo marcó la comida como entregada (estado pasa a 'entregado'). */
   @Column({ type: 'timestamptz', nullable: true })
   entregadoEn: Date | null;
 
   @Column({ type: 'int', nullable: true })
   entregadoPorId: number | null; // id del usuario (proveedor) que marcó la entrega
+
+  /**
+   * Confirmación del RESIDENTE: cuándo confirmó en su cuenta que recibió la comida.
+   * Es independiente de la del proveedor (puede llegar antes o después). Una comida está
+   * "conciliada" cuando tiene las dos confirmaciones.
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  recibidoEn: Date | null;
 
   // Precio vigente al crear el pedido: si luego cambia la configuración, el historial no se altera.
   @Column({ type: 'int' })

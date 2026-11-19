@@ -88,6 +88,11 @@ export interface ComidaPedida {
   fecha: string; // AAAA-MM-DD
   tipoComida: TipoComida;
   estado: EstadoComida;
+  /** El proveedor confirmó que la entregó. */
+  entregadoProveedor: boolean;
+  /** El residente confirmó que la recibió. */
+  recibido: boolean;
+  recibidoEn: string | null;
   hospitalId: number;
   hospital: string | null;
   turnoDisponible: TurnoDelPedido | null;
@@ -239,4 +244,39 @@ export interface ResultadoCancelacion {
 export function cancelarPedido(fecha: string, motivo?: string): Promise<ResultadoCancelacion> {
   const cuerpo = motivo?.trim() ? { fecha, motivo: motivo.trim() } : { fecha };
   return peticion<ResultadoCancelacion>('/residente/pedidos/cancelar', { metodo: 'PATCH', cuerpo });
+}
+
+/* -------------------------- Confirmación de recepción -------------------------- */
+
+export interface TotalComidaResidente {
+  tipoComida: TipoComida;
+  programadas: number;
+  entregadasProveedor: number;
+  confirmadasResidente: number;
+  conciliadas: number;
+  soloProveedor: number;
+  soloResidente: number;
+  montoProgramado: number;
+  montoEntregadoProveedor: number;
+  montoConciliado: number;
+}
+
+export interface Recepciones {
+  hoy: string;
+  /** Hasta cuántos días después se puede confirmar una comida. */
+  diasParaConfirmar: number;
+  /** Comidas de hoy y de los últimos días que aún no confirmas. */
+  porConfirmar: ComidaPedida[];
+  /** Tus totales del mes, por tipo de comida. */
+  totales: { desde: string; hasta: string; porTipo: TotalComidaResidente[]; total: Omit<TotalComidaResidente, 'tipoComida'> };
+}
+
+/** GET /residente/recepciones?anio&mes: lo que tienes por confirmar y tus totales del mes. */
+export function obtenerRecepciones(anio?: number, mes?: number): Promise<Recepciones> {
+  return peticion<Recepciones>('/residente/recepciones', { consulta: { anio, mes } });
+}
+
+/** PATCH /residente/pedidos/:id/recibido: confirmas que recibiste esa comida. */
+export function confirmarRecepcion(id: number): Promise<ComidaPedida> {
+  return peticion<ComidaPedida>(`/residente/pedidos/${id}/recibido`, { metodo: 'PATCH' });
 }

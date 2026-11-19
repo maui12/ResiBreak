@@ -43,3 +43,24 @@ export class HistorialQueryDto {
   @Max(100)
   limite?: number;
 }
+
+/** GET /api/proveedor/pendientes?dias=7: pendientes de hoy y de los próximos `dias` días. */
+export class PendientesQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(14)
+  dias?: number;
+}
+
+/** GET /api/proveedor/totales?desde&hasta (por defecto, el mes en curso). */
+export class TotalesQueryDto {
+  @IsOptional()
+  @Matches(FECHA_ISO, { message: 'desde debe tener formato AAAA-MM-DD' })
+  desde?: string;
+
+  @IsOptional()
+  @Matches(FECHA_ISO, { message: 'hasta debe tener formato AAAA-MM-DD' })
+  hasta?: string;
+}

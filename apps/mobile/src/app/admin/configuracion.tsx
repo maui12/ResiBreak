@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 
 import { mensajeDeError } from '@/api';
 import CampoConfiguracion from '@/components/admin/CampoConfiguracion';
+import TiposTurno from '@/components/admin/TiposTurno';
 import EstadoCarga from '@/components/EstadoCarga';
 import ScreenLayout from '@/components/ScreenLayout';
 import { CAMPOS_CONFIGURACION, SECCIONES_CONFIGURACION, type CampoConfiguracion as Campo } from '@/constants/configuracion';
@@ -31,9 +33,20 @@ function textosDe(configuracion: Configuracion): Textos {
 const describirCambio = (campo: Campo, antes: number, despues: number) =>
   `${campo.etiqueta}: ${mostrarValor(campo, antes)} → ${mostrarValor(campo, despues)}`;
 
+type Pestana = 'general' | 'turnos';
+
+const PESTANAS: readonly [Pestana, string][] = [
+  ['general', 'Reglas y costos'],
+  ['turnos', 'Tipos de turno'],
+];
+
 export default function ConfiguracionScreen() {
   // Solo el administrador puede cambiar la configuración; el rol "consulta" la ve en modo lectura.
   const soloLectura = obtenerSesion()?.rol !== 'admin';
+
+  // /admin/configuracion?pestana=turnos abre directamente los tipos de turno.
+  const { pestana: pestanaInicial } = useLocalSearchParams<{ pestana?: string }>();
+  const [pestana, setPestana] = useState<Pestana>(pestanaInicial === 'turnos' ? 'turnos' : 'general');
 
   /* ---- Carga ---- */
   const [guardada, setGuardada] = useState<Configuracion | null>(null);
@@ -113,8 +126,28 @@ export default function ConfiguracionScreen() {
   }
 
   return (
-    <ScreenLayout titulo="Configuración" subtitulo="Reglas y costos del sistema" menu={MENU_ADMIN}>
+    <ScreenLayout titulo="Configuración" subtitulo="Reglas, costos y tipos de turno" menu={MENU_ADMIN}>
       <View style={styles.contenido}>
+        <View style={styles.pestanas} accessibilityRole="tablist">
+          {PESTANAS.map(([valor, etiqueta]) => {
+            const activa = pestana === valor;
+            return (
+              <Pressable
+                key={valor}
+                onPress={() => setPestana(valor)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activa }}
+                style={[styles.pestana, activa && styles.pestanaActiva]}
+              >
+                <Text style={[styles.pestanaTexto, activa && styles.pestanaTextoActiva]}>{etiqueta}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {pestana === 'turnos' ? (
+          <TiposTurno soloLectura={soloLectura} />
+        ) : (
         <EstadoCarga
           cargando={guardada === null && errorCarga === null}
           error={errorCarga}
@@ -239,6 +272,7 @@ export default function ConfiguracionScreen() {
             </>
           )}
         </EstadoCarga>
+        )}
       </View>
     </ScreenLayout>
   );
@@ -250,6 +284,34 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     paddingBottom: Spacing.xl,
   },
+  /* Pestañas */
+  pestanas: {
+    flexDirection: 'row',
+    padding: 4,
+    borderRadius: Radios.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: Colors.admin.tarjeta,
+  },
+  pestana: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radios.sm,
+  },
+  pestanaActiva: {
+    backgroundColor: Colors.ucnOrange,
+  },
+  pestanaTexto: {
+    color: Colors.admin.textoSuave,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pestanaTextoActiva: {
+    color: Colors.white,
+  },
+
   intro: {
     color: Colors.admin.texto,
     fontSize: 13,

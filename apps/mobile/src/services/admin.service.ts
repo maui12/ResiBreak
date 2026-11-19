@@ -8,9 +8,17 @@
  *   GET /notificaciones            avisos (cancelaciones de pedidos)   (admin, consulta)
  *   GET /notificaciones/no-leidas  cantidad sin leer                   (admin, consulta)
  *   PATCH /notificaciones/:id/leida, /notificaciones/leer-todas        (admin)
+ *   GET /pedidos?anio&mes          lista de reparto del mes            (admin, consulta)
+ *
+ *   GET    /turnos-disponibles                  tipos de turno activos          (admin, consulta)
+ *   GET    /turnos-disponibles/especialidades   sugerencias para el formulario  (admin, consulta)
+ *   GET    /turnos-disponibles/:id              un tipo de turno                (admin, consulta)
+ *   POST   /turnos-disponibles                  crea                            (admin)
+ *   PATCH  /turnos-disponibles/:id              edita                           (admin)
+ *   DELETE /turnos-disponibles/:id              lo desactiva                    (admin)
  */
 import { peticion } from '../api';
-import type { TipoComida } from './becados.service';
+import type { EstadoComida, TipoComida, TurnoDisponible } from './becados.service';
 
 /* ------------------------------ Configuración ------------------------------ */
 
@@ -58,6 +66,20 @@ export interface ResumenPanel {
   comidasPorEspecialidad: { especialidad: string; cantidad: number }[];
   /** Siempre los cuatro tipos de comida. */
   contabilidad: { tipo: TipoComida; cantidad: number; total: number }[];
+  /** Entregas confirmadas por el proveedor, por el residente y por ambos, por tipo de comida. */
+  conciliacion: {
+    porTipo: {
+      tipoComida: TipoComida;
+      programadas: number;
+      entregadasProveedor: number;
+      confirmadasResidente: number;
+      conciliadas: number;
+      soloProveedor: number;
+      soloResidente: number;
+      montoConciliado: number;
+    }[];
+    total: { programadas: number; entregadasProveedor: number; confirmadasResidente: number; conciliadas: number; montoConciliado: number };
+  };
 }
 
 /** `mes` va de 1 a 12. */
@@ -134,4 +156,67 @@ export function marcarNotificacionLeida(id: number): Promise<Notificacion> {
 
 export function marcarTodasLeidas(): Promise<{ marcadas: number }> {
   return peticion<{ marcadas: number }>('/notificaciones/leer-todas', { metodo: 'PATCH' });
+}
+
+/* --------------------------------- Pedidos --------------------------------- */
+
+/** Un becado en un día: lo que hay que llevarle y a qué hospital. */
+export interface PedidoReparto {
+  becadoId: number;
+  becado: string;
+  hospitalId: number;
+  hospital: string;
+  /** Turno agendado por el residente; null si el pedido lo cargó administración. */
+  turno: { id: number; nombre: string; horaInicio: string; horaFin: string } | null;
+  fecha: string; // AAAA-MM-DD
+  dia: number;
+  /** En el orden desayuno, almuerzo, once, cena. */
+  comidas: TipoComida[];
+  /** Basta una comida pendiente para que el día esté pendiente. */
+  estado: EstadoComida;
+}
+
+/** Lista de reparto del mes (sin comidas canceladas), por fecha y becado. `mes` va de 1 a 12. */
+export function obtenerPedidosReparto(anio: number, mes: number): Promise<PedidoReparto[]> {
+  return peticion<PedidoReparto[]>('/pedidos', { consulta: { anio, mes } });
+}
+
+/* ------------------------------ Tipos de turno ------------------------------ */
+
+/** Tipo de turno tal como lo ve administración (lo que agendan los becados). */
+export interface TipoTurno extends TurnoDisponible {
+  /** Especialidades para las que está disponible. */
+  especialidades: string[];
+  activo: boolean;
+  actualizadoEn: string;
+}
+
+/** Lo que se envía al crear o editar. `fechaFin: null` = sin fecha de término. */
+export type DatosTipoTurno = Omit<TipoTurno, 'id' | 'activo' | 'actualizadoEn'>;
+
+/** Tipos de turno activos, ordenados por nombre. */
+export function obtenerTiposTurno(): Promise<TipoTurno[]> {
+  return peticion<TipoTurno[]>('/turnos-disponibles');
+}
+
+export function obtenerTipoTurno(id: number): Promise<TipoTurno> {
+  return peticion<TipoTurno>(`/turnos-disponibles/${id}`);
+}
+
+/** Especialidades de los becados activos y de los turnos existentes, sin repetir. */
+export function obtenerEspecialidades(): Promise<string[]> {
+  return peticion<string[]>('/turnos-disponibles/especialidades');
+}
+
+export function crearTipoTurno(datos: DatosTipoTurno): Promise<TipoTurno> {
+  return peticion<TipoTurno>('/turnos-disponibles', { metodo: 'POST', cuerpo: datos });
+}
+
+export function actualizarTipoTurno(id: number, datos: Partial<DatosTipoTurno>): Promise<TipoTurno> {
+  return peticion<TipoTurno>(`/turnos-disponibles/${id}`, { metodo: 'PATCH', cuerpo: datos });
+}
+
+/** Deja de ofrecerse a los becados; los pedidos ya agendados con él no cambian. */
+export function eliminarTipoTurno(id: number): Promise<void> {
+  return peticion<void>(`/turnos-disponibles/${id}`, { metodo: 'DELETE' });
 }
