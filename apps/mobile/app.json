@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "ResiBreak",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,8 +20,13 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "ResiBreak",
+      "shortName": "ResiBreak",
+      "lang": "es-CL",
+      "themeColor": "#003057",
+      "backgroundColor": "#F8F8F8"
     },
     "plugins": [
       "expo-router",

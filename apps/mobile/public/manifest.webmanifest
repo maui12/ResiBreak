@@ -1,0 +1,13 @@
+{
+  "name": "ResiBreak",
+  "short_name": "ResiBreak",
+  "description": "Pedidos de alimentación de residentes y becados",
+  "lang": "es-CL",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8F8F8",
+  "theme_color": "#003057",
+  "icons": [{ "src": "icon-512.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }]
+}
