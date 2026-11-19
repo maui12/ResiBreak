@@ -3,6 +3,7 @@ import {
   obtenerDatosPedidos,
   type DatosPedidos,
 } from './pedidos.service';
+import type { PedidoReparto } from './pedidos.types';
 import './Pedidos.css';
 
 const formatoCLP = new Intl.NumberFormat('es-CL', {

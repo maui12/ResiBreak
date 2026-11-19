@@ -6,7 +6,8 @@ import { Colors } from '../constants/theme';
 export default function RootLayout() {
   return (
     <>
-      <StatusBar style="dark" backgroundColor={Colors.background} />
+      {/* Sin backgroundColor: con edge-to-edge (obligatorio en Expo actual) esa prop ya no existe/no hace nada. */}
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerShown: false,

@@ -94,7 +94,7 @@ export default function PanelProveedorScreen() {
           {resumen && hoy && fechaVista && (
             <>
               <View style={styles.kpis}>
-                <Pressable style={styles.kpi} onPress={() => router.navigate('/proveedor/pendientes')} accessibilityRole="button">
+                <Pressable style={styles.kpi} onPress={() => router.navigate('/proovedor/pendientes')} accessibilityRole="button">
                   <Text style={[styles.kpiValor, resumen.pendientesHoy > 0 && { color: Colors.admin.ambar }]}>{resumen.pendientesHoy}</Text>
                   <Text style={styles.kpiEtiqueta}>Por entregar hoy ›</Text>
                 </Pressable>
