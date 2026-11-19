@@ -9,8 +9,8 @@ la administración gestiona turnos, becados y costos, y el proveedor reparte.
 ```
 apps/
   api/      backend compartido · NestJS + TypeORM + PostgreSQL + JWT
-  mobile/   app móvil · React Native + Expo (por ahora conectada: vistas del residente)
-  web/      página web · React + Vite (login y proveedor conectados; pantallas de admin aún con datos de prueba)
+  mobile/   app móvil · React Native + Expo
+  web/      página web · React + Vite 
   docker-compose.yml   bases de datos de desarrollo y de tests
 ```
 

@@ -10,6 +10,7 @@
 --   11.111.111-1  admin-prueba-123   administrador
 --   12.345.678-5  residente123       residente de Pediatría (ve 3 turnos)
 --   1.234.567-4   residente123       residente de Cirugía General (ve 2 turnos)
+--   22.222.222-2  proveedor123       proveedor (reparte en todos los hospitales)
 -- =============================================================================
 
 BEGIN;
@@ -33,7 +34,9 @@ VALUES
   ('12345678-5', '$2b$12$/zfFexPX8zBd2iJUXhKy6e2mQZ7Jv2SoJ1EqVWM0DLln0MhfJZKXW', 'residente',
      (SELECT id FROM becados WHERE rut = '12345678-5')),
   ('1234567-4', '$2b$12$/zfFexPX8zBd2iJUXhKy6e2mQZ7Jv2SoJ1EqVWM0DLln0MhfJZKXW', 'residente',
-     (SELECT id FROM becados WHERE rut = '1234567-4'))
+     (SELECT id FROM becados WHERE rut = '1234567-4')),
+  -- Proveedor: sin hospital fijo, ve los pedidos de La Serena y Coquimbo.
+  ('22222222-2', '$2a$12$gTQ58bIidghHTEJAGK4BRu/u.MjpToTsz0ICMOSKSn1eHQ1ay6QFi', 'proveedor', NULL)
 ON CONFLICT (rut) DO NOTHING;
 
 -- Turnos disponibles (los que en el futuro creará el admin desde la web).
@@ -103,6 +106,32 @@ BEGIN
   ON CONFLICT DO NOTHING;
 
   RAISE NOTICE 'Pedido de prueba creado para el %', v_fecha;
+END $$;
+
+-- Un almuerzo para HOY del residente de Cirugía en Coquimbo, para probar la doble confirmación:
+-- el proveedor lo marca como entregado y el residente confirma que lo recibió.
+-- (Desde la app no se puede pedir para hoy: la regla exige pedir hasta las 23:59 del día anterior.)
+DO $$
+DECLARE
+  v_becado   int := (SELECT id FROM becados WHERE rut = '1234567-4');
+  v_turno    int := (SELECT id FROM turnos_disponibles WHERE nombre = 'Turno pabellón (prueba)');
+  v_hospital int := (SELECT id FROM hospitales WHERE nombre = 'Coquimbo');
+BEGIN
+  IF EXISTS (SELECT 1 FROM pedidos WHERE "becadoId" = v_becado AND fecha = CURRENT_DATE AND estado <> 'cancelado') THEN
+    RAISE NOTICE 'El residente de Cirugía ya tiene pedido hoy: no se crea otro.';
+    RETURN;
+  END IF;
+
+  INSERT INTO turnos ("becadoId", fecha, tipo)
+  VALUES (v_becado, CURRENT_DATE, 'normal')
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO pedidos ("becadoId", "hospitalId", "turnoDisponibleId", fecha, "tipoComida", estado, "valorUnitario")
+  VALUES (v_becado, v_hospital, v_turno, CURRENT_DATE, 'almuerzo', 'pendiente',
+          COALESCE((SELECT "costoAlmuerzo" FROM configuracion WHERE id = 1), 6500))
+  ON CONFLICT DO NOTHING;
+
+  RAISE NOTICE 'Pedido de hoy creado para probar la entrega';
 END $$;
 
 COMMIT;
