@@ -13,7 +13,7 @@ import { router, usePathname, type Href } from 'expo-router';
 import { Colors, Radios, Spacing } from '@/constants/theme';
 import { MENU_ADMIN, type MenuSidebar } from '@/constants/menus';
 import { reiniciarNotificaciones } from '@/hooks/use-notificaciones';
-import { cerrarSesion } from '@/sesion';
+import { cerrarSesion, obtenerSesion } from '@/sesion';
 
 type SidebarProps = {
   visible: boolean;
@@ -111,7 +111,9 @@ export default function Sidebar({ visible, onClose, menu = MENU_ADMIN }: Sidebar
               <Text style={styles.etiquetaMenu}>MENÚ PRINCIPAL</Text>
 
               <View style={styles.lista}>
-                {menu.opciones.map((opcion) => {
+                {menu.opciones
+                  .filter((opcion) => !opcion.roles || opcion.roles.includes(obtenerSesion()?.rol ?? 'residente'))
+                  .map((opcion) => {
                   const activa = esActiva(opcion.ruta);
 
                   return (

@@ -1,8 +1,12 @@
+import type { Rol } from '@/sesion';
+
 export type OpcionSidebar = {
   titulo: string;
   descripcion: string;
   icono: string;
   ruta: string;
+  /** Si se indica, solo esos roles ven la opción (por ejemplo, consulta no ve "Usuarios"). */
+  roles?: readonly Rol[];
 };
 
 export type MenuSidebar = {
@@ -22,6 +26,7 @@ export const MENU_ADMIN: MenuSidebar = {
     { titulo: 'Pedidos', descripcion: 'Comidas y repartos', icono: '▤', ruta: '/admin/pedidos' },
     { titulo: 'Informes', descripcion: 'Reportes por hospital', icono: '▥', ruta: '/admin/informes' },
     { titulo: 'Notificaciones', descripcion: 'Pedidos cancelados por becados', icono: '🔔', ruta: '/admin/notificaciones' },
+    { titulo: 'Usuarios', descripcion: 'Agregar residentes nuevos', icono: '👥', ruta: '/admin/usuarios', roles: ['admin'] },
     { titulo: 'Configuración', descripcion: 'Reglas y costos', icono: '⚙', ruta: '/admin/configuracion' },
   ],
 };

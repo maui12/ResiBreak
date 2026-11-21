@@ -46,6 +46,16 @@ services:
     tmpfs:
       - /var/lib/postgresql/data # se borra al detenerla
 
+  # Buzón de pruebas para el correo (solo desarrollo): captura todo lo que envía la API, sin
+  # mandarle nada a nadie. Bandeja en http://localhost:8025 · ver apps/api/src/correo/README.md.
+  #   docker compose -f apps/docker-compose.yml --profile correo up -d mailpit
+  mailpit:
+    image: axllent/mailpit:latest
+    profiles: [correo]
+    ports:
+      - "127.0.0.1:1025:1025" # SMTP (la API se conecta aquí)
+      - "127.0.0.1:8025:8025" # bandeja web
+
   api:
     build:
       context: ..

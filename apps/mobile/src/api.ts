@@ -86,14 +86,16 @@ export async function peticion<T>(ruta: string, opciones: OpcionesPeticion = {})
   const cabeceras: Record<string, string> = { Accept: 'application/json' };
   const token = obtenerToken();
   if (token) cabeceras.Authorization = `Bearer ${token}`;
-  if (cuerpo !== undefined) cabeceras['Content-Type'] = 'application/json';
+  // Con FormData (subida de archivos) fetch pone solo el Content-Type multipart con su "boundary".
+  const esFormulario = typeof FormData !== 'undefined' && cuerpo instanceof FormData;
+  if (cuerpo !== undefined && !esFormulario) cabeceras['Content-Type'] = 'application/json';
 
   let respuesta: Response;
   try {
     respuesta = await fetch(url, {
       method: metodo,
       headers: cabeceras,
-      body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
+      body: esFormulario ? cuerpo : cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
     });
   } catch {
       throw new ApiError(0, `No se pudo conectar con ${API_URL}. Revisa que la API esté corriendo y que sea alcanzable desde este dispositivo.`);

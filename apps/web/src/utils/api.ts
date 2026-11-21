@@ -34,7 +34,8 @@ export async function api<T>(ruta: string, opciones: RequestInit = {}): Promise<
   const token = obtenerToken();
   const headers = new Headers(opciones.headers);
   headers.set('Accept', 'application/json');
-  if (opciones.body) headers.set('Content-Type', 'application/json');
+  // Con FormData (subida de archivos) el navegador pone el Content-Type multipart con su "boundary".
+  if (opciones.body && !(opciones.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
   let respuesta: Response;

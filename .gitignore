@@ -3,3 +3,4 @@
 # Configuración local (no se sube: cada uno tiene la suya; ver los .env.example)
 apps/.env
 apps/mobile/.env
+apps/mobile/.env

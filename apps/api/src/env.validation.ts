@@ -3,7 +3,9 @@
  * es mejor fallar al inicio que descubrirlo en producción.
  */
 
-const REQUERIDAS = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'JWT_SECRET'];
+import { validarConfigCorreo } from './correo/correo.config.js';
+
+const REQUERIDAS =['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'JWT_SECRET'];
 
 /** El token dura como máximo 8 horas (una jornada). */
 export const JWT_EXPIRA_MAX_SEGUNDOS = 8 * 60 * 60; // 28800
@@ -64,6 +66,9 @@ export function validarEnv(env: Record<string, unknown>): Record<string, unknown
   if (produccion && texto('ADMIN_PASSWORD') && texto('ADMIN_PASSWORD').length < 12) {
     errores.push('ADMIN_PASSWORD debe tener al menos 12 caracteres');
   }
+
+  // 8. Correo (ver src/correo/README.md). Sin configurar, la API arranca y solo registra los correos.
+  errores.push(...validarConfigCorreo(env));
 
   if (errores.length > 0) throw new Error(`Configuración inválida:\n - ${errores.join('\n - ')}`);
   return env;

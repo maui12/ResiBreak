@@ -9,6 +9,9 @@ process.env.DB_SYNC = 'true';
 process.env.JWT_SECRET = 'secreto-solo-para-tests-'.padEnd(40, 'x');
 process.env.ADMIN_RUT = '11111111-1';
 process.env.ADMIN_PASSWORD = 'clave-admin-de-pruebas';
+// Los tests nunca envían correos reales: los guardan en memoria (ver src/correo/envio/memoria.envio.ts).
+process.env.CORREO_PROVEEDOR = 'memoria';
+delete process.env.SMTP_HOST;
 
 // Seguro de vida: los tests borran datos, jamás deben apuntar a la BD real.
 if (!process.env.DB_NAME.endsWith('_test')) {

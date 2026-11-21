@@ -7,9 +7,11 @@ import { AuthModule } from './auth/auth.module.js';
 import { BecadosModule } from './becados/becados.module.js';
 import { CalendarioModule } from './calendario/calendario.module.js';
 import { ConfiguracionModule } from './configuracion/configuracion.module.js';
+import { CorreoModule } from './correo/correo.module.js';
 import { validarEnv } from './env.validation.js';
 import { HealthController } from './health/health.controller.js';
 import { HospitalesModule } from './hospitales/hospitales.module.js';
+import { ImportacionModule } from './importacion/importacion.module.js';
 import { InformesModule } from './informes/informes.module.js';
 import { PanelModule } from './panel/panel.module.js';
 import { NotificacionesModule } from './notificaciones/notificaciones.module.js';
@@ -51,6 +53,8 @@ import { TurnosDisponiblesModule } from './turnos-disponibles/turnos-disponibles
     InformesModule,
     ProveedorModule,
     NotificacionesModule,
+    CorreoModule,
+    ImportacionModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -62,6 +62,14 @@ export class UsuariosService {
   }
 
   private aVista(u: Usuario) {
-    return { id: u.id, rut: u.rut, rol: u.rol, becadoId: u.becadoId, hospitalId: u.hospitalId, activo: u.activo };
+    return {
+      id: u.id,
+      rut: u.rut,
+      rol: u.rol,
+      email: u.email,
+      becadoId: u.becadoId,
+      hospitalId: u.hospitalId,
+      activo: u.activo,
+    };
   }
 }

@@ -61,7 +61,10 @@ export class AuthService implements OnModuleInit {
       .getOne();
 
     const bloqueado = !!usuario?.bloqueadoHasta && usuario.bloqueadoHasta > new Date();
-    const coincide = await bcrypt.compare(password, usuario?.passwordHash ?? HASH_FALSO);
+    // Una cuenta sin contraseña todavía (CLAVE_PENDIENTE, no es un hash bcrypt) nunca coincide, pero
+    // igual se compara contra HASH_FALSO para que el tiempo de respuesta sea el mismo.
+    const hashReal = usuario?.passwordHash?.startsWith('$2') ? usuario.passwordHash : null;
+    const coincide = (await bcrypt.compare(password, hashReal ?? HASH_FALSO)) && hashReal !== null;
 
     if (!usuario || bloqueado || !coincide) {
       if (usuario && !bloqueado) await this.registrarFallo(usuario);

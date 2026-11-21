@@ -7,10 +7,11 @@ import Configuracion from './pages/Admin/Configuracion/Configuracion.tsx';
 import Informes from './pages/Admin/Informes/Informes.tsx';
 import Panel from './pages/Admin/Panel/Panel.tsx';
 import Pedidos from './pages/Admin/Pedidos/Pedidos.tsx';
+import Usuarios from './pages/Admin/Usuarios/Usuarios.tsx';
 import Login from './pages/Login/Login.tsx';
 import HistorialPedidos from './pages/Proveedor/Historial/HistorialPedidos.tsx';
 import PedidosDeHoy from './pages/Proveedor/PedidosDeHoy/PedidosDeHoy.tsx';
-import { ROLES_ADMIN, ROLES_PROVEEDOR } from './utils/roles.ts';
+import { ROLES_ADMIN, ROLES_PROVEEDOR, SOLO_ADMIN } from './utils/roles.ts';
 
 function App() {
   return (
@@ -28,6 +29,14 @@ function App() {
           <Route path="becados" element={<Becados />} />
           <Route path="informes" element={<Informes />} />
           <Route path="pedidos" element={<Pedidos />} />
+          <Route
+            path="usuarios"
+            element={
+              <RutaProtegida roles={SOLO_ADMIN}>
+                <Usuarios />
+              </RutaProtegida>
+            }
+          />
         </Route>
       </Route>
 

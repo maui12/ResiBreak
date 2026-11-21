@@ -2,6 +2,8 @@
 export type Rol = 'admin' | 'consulta' | 'proveedor' | 'residente';
 
 export const ROLES_ADMIN: Rol[] = ['admin', 'consulta'];
+/** Pantallas que modifican usuarios: solo el admin (consulta no las ve). */
+export const SOLO_ADMIN: Rol[] = ['admin'];
 export const ROLES_PROVEEDOR: Rol[] = ['proveedor', 'admin'];
 
 /** Pantalla a la que va cada rol después de iniciar sesión. */
