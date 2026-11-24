@@ -10,7 +10,10 @@ import type {
 
 export interface ResumenPedidos {
   totalRaciones: number;
+  /** Con las dos confirmaciones: proveedor y residente. */
   repartidas: number;
+  /** Confirmadas por una sola de las partes. */
+  parcialmenteRepartidas: number;
   porRepartir: number;
   montoTotal: number;
 }
@@ -39,7 +42,8 @@ export async function obtenerDatosPedidos(): Promise<DatosPedidos> {
     pedidos: pedidosMock,
     resumen: {
       totalRaciones,
-      repartidas: 48,
+      repartidas: 40,
+      parcialmenteRepartidas: 8,
       porRepartir: 45,
       montoTotal,
     },

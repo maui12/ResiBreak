@@ -116,7 +116,9 @@ export default function PanelAdminScreen() {
                 <Kpi
                   etiqueta="Comidas repartidas"
                   valor={formatoNumero(datos.comidasRepartidas)}
-                  detalle={`de ${formatoNumero(datos.comidasProgramadas)} programadas (${porcentajeRepartido}%)`}
+                  detalle={`de ${formatoNumero(datos.comidasProgramadas)} programadas (${porcentajeRepartido}%) · ${formatoNumero(
+                    datos.comidasParcialmenteRepartidas,
+                  )} parcialmente repartidas`}
                 />
                 <Kpi
                   etiqueta="Becados activos"

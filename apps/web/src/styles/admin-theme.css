@@ -13,11 +13,13 @@
   --nt-celeste: #38bdf8;
   --nt-verde: #1a942b;
   --nt-violeta: #9c0ee9;
+  --nt-violeta-suave: #c084fc;
   --nt-ambar: #f3b006;
   --nt-rojo: #e41d3b;
 
   --nt-celeste-fondo: rgba(56, 189, 248, 0.14);
   --nt-ambar-fondo: rgba(251, 191, 36, 0.12);
+  --nt-violeta-fondo: rgba(156, 14, 233, 0.18);
 }
 
 /* Fondo y color de texto del área donde se muestran las páginas */

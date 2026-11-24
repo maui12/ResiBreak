@@ -167,6 +167,24 @@ describe('Confirmaciones de entrega (e2e)', () => {
       const [anio, mes] = hoy.split('-').map(Number);
       const res = await http().get('/api/panel/resumen').query({ anio, mes }).auth(admin, { type: 'bearer' }).expect(200);
       expect(res.body.conciliacion.porTipo.map((t: { tipoComida: string }) => t.tipoComida)).toEqual(['desayuno', 'almuerzo', 'once', 'cena']);
+      // Repartidas = con las dos confirmaciones (desayuno de Ana y almuerzo de Beto);
+      // parciales = almuerzo de Ana (solo proveedor) y cena de Ana (solo residente).
+      expect(res.body).toMatchObject({ comidasRepartidas: 2, comidasParcialmenteRepartidas: 2 });
+    });
+
+    it('la lista de reparto indica qué parte confirmó: programado, parcial o repartido', async () => {
+      const [anio, mes] = hoy.split('-').map(Number);
+      const res = await http().get('/api/pedidos').query({ anio, mes }).auth(admin, { type: 'bearer' }).expect(200);
+      const deHoy = (nombre: string) =>
+        res.body.find((p: { becado: string; fecha: string }) => p.becado === nombre && p.fecha === hoy);
+      expect(deHoy('Ana Pérez')).toMatchObject({
+        comidas: ['desayuno', 'almuerzo', 'cena'],
+        estadoReparto: 'parcial',
+        confirmaciones: { proveedor: 2, residente: 2 },
+      });
+      expect(deHoy('Beto Díaz')).toMatchObject({ estadoReparto: 'repartido', confirmaciones: { proveedor: 1, residente: 1 } });
+      const enTres = res.body.find((p: { fecha: string }) => p.fecha === sumarDias(hoy, 3));
+      if (enTres) expect(enTres).toMatchObject({ estadoReparto: 'programado', confirmaciones: { proveedor: 0, residente: 0 } });
     });
 
     it('SEGURIDAD: un residente no ve los totales del proveedor (403)', async () => {

@@ -10,6 +10,18 @@ import { Hospital } from './../hospitales/hospital.entity.js';
 import type { CambiarEstadoDto, CrearPedidoDto, ListarPedidosQueryDto } from './dto/pedidos.dto.js';
 import { Pedido } from './pedido.entity.js';
 
+/**
+ * Estado del reparto según las dos confirmaciones (proveedor y residente):
+ * programado = nadie confirmó; parcial = falta alguna; repartido = ambos confirmaron todas las comidas.
+ */
+export type EstadoReparto = 'programado' | 'parcial' | 'repartido';
+
+export function estadoReparto(total: number, proveedor: number, residente: number): EstadoReparto {
+  if (proveedor === total && residente === total) return 'repartido';
+  if (proveedor === 0 && residente === 0) return 'programado';
+  return 'parcial';
+}
+
 /** Una fila de la pantalla "Pedidos": todas las comidas de un becado en un día. */
 export interface PedidoDelDia {
   becadoId: number;
@@ -22,7 +34,11 @@ export interface PedidoDelDia {
   dia: number;
   /** En el orden de TIPOS_COMIDA. */
   comidas: TipoComida[];
+  /** Estado guardado (marca del proveedor): basta una comida pendiente para que el día esté pendiente. */
   estado: EstadoPedido;
+  estadoReparto: EstadoReparto;
+  /** Cuántas de las comidas del día confirmó cada parte. */
+  confirmaciones: { proveedor: number; residente: number };
 }
 
 @Injectable()
@@ -92,12 +108,19 @@ export class PedidosService {
         dia: Number(f.fecha.slice(8, 10)),
         comidas: [],
         estado: f.estado,
+        estadoReparto: 'programado',
+        confirmaciones: { proveedor: 0, residente: 0 },
       };
       grupo.comidas.push(f.tipoComida);
       grupo.comidas.sort((a, b) => TIPOS_COMIDA.indexOf(a) - TIPOS_COMIDA.indexOf(b));
       // el día se muestra con el estado "más pendiente": basta una pendiente para que el día esté pendiente
       if (PRIORIDAD[f.estado] > PRIORIDAD[grupo.estado]) grupo.estado = f.estado;
+      if (f.estado === 'entregado') grupo.confirmaciones.proveedor++;
+      if (f.recibidoEn) grupo.confirmaciones.residente++;
       grupos.set(clave, grupo);
+    }
+    for (const g of grupos.values()) {
+      g.estadoReparto = estadoReparto(g.comidas.length, g.confirmaciones.proveedor, g.confirmaciones.residente);
     }
     return [...grupos.values()];
   }

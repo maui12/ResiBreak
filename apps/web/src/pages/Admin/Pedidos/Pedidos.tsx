@@ -3,7 +3,7 @@ import {
   obtenerDatosPedidos,
   type DatosPedidos,
 } from './pedidos.service';
-import type { PedidoReparto } from './pedidos.types';
+import { ESTADOS_PEDIDO, type EstadoPedido, type PedidoReparto } from './pedidos.types';
 import './Pedidos.css';
 
 const formatoCLP = new Intl.NumberFormat('es-CL', {
@@ -11,6 +11,19 @@ const formatoCLP = new Intl.NumberFormat('es-CL', {
   currency: 'CLP',
   maximumFractionDigits: 0,
 });
+
+const CLASE_ESTADO: Record<EstadoPedido, string> = {
+  Programado: 'status-scheduled',
+  'Parcialmente repartido': 'status-partial',
+  Repartido: 'status-delivered',
+};
+
+/** "Proveedor: confirmó", "Residente: sin confirmar" o "Proveedor: confirmó 1 de 3". */
+function confirmacionDe(parte: string, confirmadas: number, total: number) {
+  if (confirmadas === total) return { listo: true, texto: `${parte}: confirmó` };
+  if (confirmadas === 0) return { listo: false, texto: `${parte}: sin confirmar` };
+  return { listo: false, texto: `${parte}: confirmó ${confirmadas} de ${total}` };
+}
 
 function Pedidos() {
   const [datos, setDatos] = useState<DatosPedidos | null>(null);
@@ -75,6 +88,10 @@ function Pedidos() {
           <li>
             <span className="pedidos-punto pedidos-punto--repartido" />{' '}
             {resumen.repartidas} repartidas
+          </li>
+          <li>
+            <span className="pedidos-punto pedidos-punto--parcial" />{' '}
+            {resumen.parcialmenteRepartidas} parcialmente repartidas
           </li>
           <li>
             <span className="pedidos-punto pedidos-punto--programado" />{' '}
@@ -144,6 +161,19 @@ function Pedidos() {
 
             <div className="tracking-item">
               <div className="tracking-label">
+                <span>Parcialmente repartidos</span>
+                <strong>{resumen.parcialmenteRepartidas}</strong>
+              </div>
+              <div className="tracking-bar">
+                <span
+                  className="tracking-progress partial-progress"
+                  style={{ width: `${porcentaje(resumen.parcialmenteRepartidas)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="tracking-item">
+              <div className="tracking-label">
                 <span>Por repartir</span>
                 <strong>{resumen.porRepartir}</strong>
               </div>
@@ -178,8 +208,11 @@ function Pedidos() {
               onChange={(event) => setFiltroEstado(event.target.value)}
             >
               <option value="Todos">Todos</option>
-              <option value="Repartido">Repartido</option>
-              <option value="Programado">Programado</option>
+              {ESTADOS_PEDIDO.map((estado) => (
+                <option key={estado} value={estado}>
+                  {estado}
+                </option>
+              ))}
             </select>
           </label>
         </div>
@@ -207,15 +240,25 @@ function Pedidos() {
                     {pedido.comidas.length}
                   </td>
                   <td className="status-cell">
-                    <span
-                      className={`pedido-status ${
-                        pedido.estado === 'Repartido'
-                          ? 'status-delivered'
-                          : 'status-scheduled'
-                      }`}
-                    >
+                    <span className={`pedido-status ${CLASE_ESTADO[pedido.estado]}`}>
                       {pedido.estado}
                     </span>
+                    {pedido.estado === 'Parcialmente repartido' && (
+                      <ul className="pedido-partes">
+                        {[
+                          confirmacionDe('Proveedor', pedido.confirmaciones.proveedor, pedido.comidas.length),
+                          confirmacionDe('Residente', pedido.confirmaciones.residente, pedido.comidas.length),
+                        ].map((parte) => (
+                          <li
+                            key={parte.texto}
+                            className={parte.listo ? 'parte-lista' : 'parte-falta'}
+                          >
+                            <span aria-hidden="true">{parte.listo ? '✓' : '✗'}</span>{' '}
+                            {parte.texto}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </td>
                 </tr>
               ))}

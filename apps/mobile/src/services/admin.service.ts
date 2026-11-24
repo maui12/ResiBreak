@@ -57,7 +57,10 @@ export interface ResumenPanel {
   gastoMes: number;
   /** Comidas del mes sin cancelar (pendientes + repartidas). */
   comidasProgramadas: number;
+  /** Con las dos confirmaciones: proveedor y residente. */
   comidasRepartidas: number;
+  /** Confirmadas solo por el proveedor o solo por el residente. */
+  comidasParcialmenteRepartidas: number;
   becadosActivos: number;
   /** Becados con más turnos que `maxTurnosMes` en el mes. */
   becadosSobreLimite: number;
@@ -160,6 +163,15 @@ export function marcarTodasLeidas(): Promise<{ marcadas: number }> {
 
 /* --------------------------------- Pedidos --------------------------------- */
 
+/** programado = nadie confirmó; parcial = falta una de las partes; repartido = proveedor y residente confirmaron. */
+export type EstadoReparto = 'programado' | 'parcial' | 'repartido';
+
+export const NOMBRE_ESTADO_REPARTO: Record<EstadoReparto, string> = {
+  programado: 'Programado',
+  parcial: 'Parcialmente repartido',
+  repartido: 'Repartido',
+};
+
 /** Un becado en un día: lo que hay que llevarle y a qué hospital. */
 export interface PedidoReparto {
   becadoId: number;
@@ -172,8 +184,11 @@ export interface PedidoReparto {
   dia: number;
   /** En el orden desayuno, almuerzo, once, cena. */
   comidas: TipoComida[];
-  /** Basta una comida pendiente para que el día esté pendiente. */
+  /** Marca del proveedor: basta una comida pendiente para que el día esté pendiente. */
   estado: EstadoComida;
+  estadoReparto: EstadoReparto;
+  /** Cuántas de las comidas del día confirmó cada parte. */
+  confirmaciones: { proveedor: number; residente: number };
 }
 
 /** Lista de reparto del mes (sin comidas canceladas), por fecha y becado. `mes` va de 1 a 12. */

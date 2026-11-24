@@ -40,14 +40,27 @@ export const pedidosMock: PedidoReparto[] = Array.from(
   (_, index) => {
     const dia = index + 1;
     const becado = becados[(index + 1) % becados.length];
+    const comidas = [...combinacionesComida[index % combinacionesComida.length]];
+    const total = comidas.length;
+
+    // Días 1-12 con las dos confirmaciones, 13-16 con una sola parte, el resto sin confirmar.
+    const confirmaciones =
+      dia <= 12
+        ? { proveedor: total, residente: total }
+        : dia <= 16
+          ? dia % 2 === 0
+            ? { proveedor: total, residente: 0 }
+            : { proveedor: 0, residente: total }
+          : { proveedor: 0, residente: 0 };
 
     return {
       id: dia,
       dia,
       becado: becado.nombre,
       hospital: becado.hospital,
-      comidas: [...combinacionesComida[index % combinacionesComida.length]],
-      estado: dia <= 16 ? 'Repartido' : 'Programado',
+      comidas,
+      estado: dia <= 12 ? 'Repartido' : dia <= 16 ? 'Parcialmente repartido' : 'Programado',
+      confirmaciones,
     };
   },
 );

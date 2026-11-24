@@ -9,18 +9,35 @@ import ScreenLayout from '@/components/ScreenLayout';
 import { MENU_ADMIN } from '@/constants/menus';
 import { Colors, Radios, Spacing } from '@/constants/theme';
 import {
+  NOMBRE_ESTADO_REPARTO,
   obtenerConfiguracion,
   obtenerPedidosReparto,
   obtenerResumenPanel,
+  type EstadoReparto,
   type PedidoReparto,
   type ResumenPanel,
 } from '@/services/admin.service';
-import { NOMBRE_COMIDA, NOMBRE_ESTADO } from '@/services/becados.service';
+import { NOMBRE_COMIDA } from '@/services/becados.service';
 import { claveFecha, fechaDesdeClave, formatoFechaLarga } from '@/utils/fechas';
 import { formatoNumero, formatoPesos } from '@/utils/formato';
 import { horarioTurno } from '@/utils/turnos';
 
-type FiltroEstado = 'todos' | 'pendiente' | 'entregado';
+type FiltroEstado = 'todos' | EstadoReparto;
+
+const VIOLETA_SUAVE = '#c084fc';
+
+const COLOR_ESTADO: Record<EstadoReparto, { texto: string; fondo: string }> = {
+  programado: { texto: Colors.admin.ambar, fondo: Colors.admin.ambarFondo },
+  parcial: { texto: VIOLETA_SUAVE, fondo: 'rgba(156, 14, 233, 0.18)' },
+  repartido: { texto: Colors.admin.celeste, fondo: Colors.admin.celesteFondo },
+};
+
+/** "Proveedor: confirmó", "Residente: sin confirmar" o "Proveedor: confirmó 1 de 3". */
+function confirmacionDe(parte: string, confirmadas: number, total: number) {
+  if (confirmadas === total) return { listo: true, texto: `${parte}: confirmó` };
+  if (confirmadas === 0) return { listo: false, texto: `${parte}: sin confirmar` };
+  return { listo: false, texto: `${parte}: confirmó ${confirmadas} de ${total}` };
+}
 
 interface DatosPedidos {
   clave: string;
@@ -109,7 +126,8 @@ export default function PedidosAdminScreen() {
   const resumen = vigentes?.resumen;
   const totalRaciones = resumen?.comidasProgramadas ?? 0;
   const repartidas = resumen?.comidasRepartidas ?? 0;
-  const porRepartir = Math.max(0, totalRaciones - repartidas);
+  const parciales = resumen?.comidasParcialmenteRepartidas ?? 0;
+  const porRepartir = Math.max(0, totalRaciones - repartidas - parciales);
   const porcentaje = (valor: number) => (totalRaciones ? (valor / totalRaciones) * 100 : 0);
 
   /* ---- Lista de reparto ---- */
@@ -119,7 +137,7 @@ export default function PedidosAdminScreen() {
   );
   const filtrados = pedidos.filter(
     (p) =>
-      (filtroEstado === 'todos' || p.estado === filtroEstado) &&
+      (filtroEstado === 'todos' || p.estadoReparto === filtroEstado) &&
       (filtroHospital === 0 || p.hospitalId === filtroHospital),
   );
   const porDia = new Map<string, PedidoReparto[]>();
@@ -153,11 +171,15 @@ export default function PedidosAdminScreen() {
                 </Text>
                 <View style={styles.leyenda}>
                   <View style={styles.leyendaItem}>
-                    <View style={[styles.punto, { backgroundColor: Colors.admin.celeste }]} />
+                    <View style={[styles.punto, { backgroundColor: COLOR_ESTADO.repartido.texto }]} />
                     <Text style={styles.leyendaTexto}>{formatoNumero(repartidas)} repartidas</Text>
                   </View>
                   <View style={styles.leyendaItem}>
-                    <View style={[styles.punto, { backgroundColor: Colors.admin.ambar }]} />
+                    <View style={[styles.punto, { backgroundColor: COLOR_ESTADO.parcial.texto }]} />
+                    <Text style={styles.leyendaTexto}>{formatoNumero(parciales)} parcialmente repartidas</Text>
+                  </View>
+                  <View style={styles.leyendaItem}>
+                    <View style={[styles.punto, { backgroundColor: COLOR_ESTADO.programado.texto }]} />
                     <Text style={styles.leyendaTexto}>{formatoNumero(porRepartir)} por repartir</Text>
                   </View>
                 </View>
@@ -210,8 +232,9 @@ export default function PedidosAdminScreen() {
                 </Text>
                 {(
                   [
-                    ['Repartidos', repartidas, Colors.admin.celeste],
-                    ['Por repartir', porRepartir, Colors.admin.ambar],
+                    ['Repartidos', repartidas, COLOR_ESTADO.repartido.texto],
+                    ['Parcialmente repartidos', parciales, COLOR_ESTADO.parcial.texto],
+                    ['Por repartir', porRepartir, COLOR_ESTADO.programado.texto],
                   ] as const
                 ).map(([etiqueta, valor, color]) => (
                   <View
@@ -258,8 +281,9 @@ export default function PedidosAdminScreen() {
                   onCambiar={setFiltroEstado}
                   opciones={[
                     ['todos', 'Todos'],
-                    ['pendiente', NOMBRE_ESTADO.pendiente],
-                    ['entregado', NOMBRE_ESTADO.entregado],
+                    ['programado', NOMBRE_ESTADO_REPARTO.programado],
+                    ['parcial', NOMBRE_ESTADO_REPARTO.parcial],
+                    ['repartido', NOMBRE_ESTADO_REPARTO.repartido],
                   ]}
                 />
                 {hospitales.length > 1 && (
@@ -291,8 +315,15 @@ export default function PedidosAdminScreen() {
                         </View>
 
                         {delDia.map((p) => {
-                          const repartido = p.estado === 'entregado';
+                          const color = COLOR_ESTADO[p.estadoReparto];
                           const comidas = p.comidas.map((c) => NOMBRE_COMIDA[c]).join(' · ');
+                          const partes =
+                            p.estadoReparto === 'parcial'
+                              ? [
+                                  confirmacionDe('Proveedor', p.confirmaciones.proveedor, p.comidas.length),
+                                  confirmacionDe('Residente', p.confirmaciones.residente, p.comidas.length),
+                                ]
+                              : [];
                           return (
                             <View
                               key={`${p.becadoId}-${p.fecha}`}
@@ -300,7 +331,9 @@ export default function PedidosAdminScreen() {
                               accessible
                               accessibilityLabel={`${p.becado}, Hospital de ${p.hospital}${
                                 p.turno ? `, ${p.turno.nombre}` : ''
-                              }: ${comidas}. ${NOMBRE_ESTADO[p.estado]}`}
+                              }: ${comidas}. ${NOMBRE_ESTADO_REPARTO[p.estadoReparto]}${partes
+                                .map((x) => `. ${x.texto}`)
+                                .join('')}`}
                             >
                               <View style={styles.pedidoTextos}>
                                 <Text style={styles.pedidoBecado} numberOfLines={1}>
@@ -311,16 +344,23 @@ export default function PedidosAdminScreen() {
                                   {p.turno ? ` · ${p.turno.nombre} (${horarioTurno(p.turno)})` : ''}
                                 </Text>
                                 <Text style={styles.pedidoComidas}>{comidas}</Text>
+                                {partes.length > 0 && (
+                                  <View style={styles.partes}>
+                                    {partes.map((x) => (
+                                      <Text
+                                        key={x.texto}
+                                        style={[styles.parte, { color: x.listo ? Colors.admin.celeste : Colors.admin.ambar }]}
+                                      >
+                                        {x.listo ? '✓' : '✗'} {x.texto}
+                                      </Text>
+                                    ))}
+                                  </View>
+                                )}
                               </View>
                               <View style={styles.pedidoLado}>
-                                <View style={[styles.estado, repartido ? styles.estadoRepartido : styles.estadoProgramado]}>
-                                  <Text
-                                    style={[
-                                      styles.estadoTexto,
-                                      { color: repartido ? Colors.admin.celeste : Colors.admin.ambar },
-                                    ]}
-                                  >
-                                    {NOMBRE_ESTADO[p.estado]}
+                                <View style={[styles.estado, { backgroundColor: color.fondo }]}>
+                                  <Text style={[styles.estadoTexto, { color: color.texto }]}>
+                                    {NOMBRE_ESTADO_REPARTO[p.estadoReparto]}
                                   </Text>
                                 </View>
                                 <Text style={styles.pedidoTotal}>{p.comidas.length}</Text>
@@ -571,11 +611,16 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 999,
   },
-  estadoRepartido: {
-    backgroundColor: Colors.admin.celesteFondo,
+  partes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 12,
+    rowGap: 2,
+    marginTop: 2,
   },
-  estadoProgramado: {
-    backgroundColor: Colors.admin.ambarFondo,
+  parte: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   estadoTexto: {
     fontSize: 11,

@@ -4,6 +4,7 @@
  */
 import { Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import { File, Paths } from 'expo-file-system';
 
 import { peticion } from '@/api';
 
@@ -58,7 +59,9 @@ export async function elegirExcel(): Promise<ArchivoElegido | null> {
   const resultado = await DocumentPicker.getDocumentAsync({
     type: TIPOS_EXCEL,
     multiple: false,
-    copyToCacheDirectory: true, // la subida lee el archivo desde la caché de la app
+    // En Android se pide el content:// original: la copia del selector queda fuera de las carpetas
+    // que expo-file-system deja leer (en Expo Go, "Missing 'READ' permission").
+    copyToCacheDirectory: Platform.OS !== 'android',
     base64: false, // (solo web) no hace falta: se sube el File directamente
   });
   return resultado.canceled ? null : (resultado.assets[0] ?? null);
@@ -71,18 +74,26 @@ export function validarArchivo(archivo: ArchivoElegido): string | null {
   return null;
 }
 
+/**
+ * En SDK 57 el fetch global del celular es expo/fetch, que no acepta la forma { uri, name, type }
+ * de React Native: adjunta objetos File de expo-file-system, con el nombre del archivo en disco.
+ * La API exige la extensión (.xlsx, .xls, .csv), así que se copia con el nombre original si difiere.
+ */
+async function archivoParaSubir(archivo: ArchivoElegido): Promise<File> {
+  const origen = new File(archivo.uri);
+  if (origen.name === archivo.name) return origen;
+  const copia = new File(Paths.cache, archivo.name);
+  await origen.copy(copia, { overwrite: true });
+  return copia;
+}
+
 /** Paso 1: sube el Excel y recibe qué residentes y especialidades son nuevos. No guarda nada. */
-export function obtenerVistaPrevia(archivo: ArchivoElegido) {
+export async function obtenerVistaPrevia(archivo: ArchivoElegido) {
   const datos = new FormData();
   if (Platform.OS === 'web' && archivo.file) {
     datos.append('archivo', archivo.file, archivo.name);
   } else {
-    // React Native: fetch sube el archivo a partir de su uri (forma { uri, name, type }).
-    datos.append('archivo', {
-      uri: archivo.uri,
-      name: archivo.name,
-      type: archivo.mimeType ?? 'application/octet-stream',
-    } as unknown as Blob);
+    datos.append('archivo', await archivoParaSubir(archivo));
   }
   return peticion<VistaPrevia>('/becados/importar/vista-previa', { metodo: 'POST', cuerpo: datos });
 }
