@@ -26,7 +26,7 @@ import type { Configuracion } from '../configuracion/configuracion.entity.js';
 import { ConfiguracionService } from '../configuracion/configuracion.service.js';
 import { Hospital } from '../hospitales/hospital.entity.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
-import { conciliar } from '../pedidos/conciliacion.js';
+import { conciliar, sinMontos } from '../pedidos/conciliacion.js';
 import { Pedido } from '../pedidos/pedido.entity.js';
 import { Turno } from '../turnos/turno.entity.js';
 import { motivoNoDisponible } from '../turnos-disponibles/disponibilidad.js';
@@ -411,7 +411,8 @@ export class ResidenteService {
 
   /**
    * Lo que el residente tiene por confirmar (hoy y los últimos días) y sus totales del mes por
-   * tipo de comida: cuántas confirmó él, cuántas el proveedor y cuántas ambos, con sus montos.
+   * tipo de comida: cuántas confirmó él, cuántas el proveedor y cuántas ambos. Sin montos: el
+   * residente no ve precios.
    */
   async recepciones(becadoId: number | null, q: RecepcionesQueryDto) {
     const becado = await this.becadoDe(becadoId);
@@ -438,7 +439,7 @@ export class ResidenteService {
       hoy,
       diasParaConfirmar: DIAS_PARA_CONFIRMAR,
       porConfirmar: this.ordenar(porConfirmar).map((p) => this.aRespuesta(p)),
-      totales,
+      totales: sinMontos(totales),
     };
   }
 

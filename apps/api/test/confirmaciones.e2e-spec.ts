@@ -153,6 +153,14 @@ describe('Confirmaciones de entrega (e2e)', () => {
       expect(res.body.porConfirmar.map((p: { id: number }) => p.id)).toEqual([ids.anaAlmuerzoHoy]);
       expect(res.body.porConfirmar[0]).toMatchObject({ entregadoProveedor: true, recibido: false });
       expect(res.body.totales.porTipo).toHaveLength(4);
+      const almuerzo = res.body.totales.porTipo.find((t: { tipoComida: string }) => t.tipoComida === 'almuerzo');
+      // El de hoy: el proveedor lo entregó y Ana aún no lo confirma (siempre cae en el mes en curso).
+      expect(almuerzo).toMatchObject({ entregadasProveedor: 1, confirmadasResidente: 0 });
+    });
+
+    it('SEGURIDAD: el residente no recibe precios ni montos', async () => {
+      const res = await http().get('/api/residente/recepciones').auth(ana, { type: 'bearer' }).expect(200);
+      expect(JSON.stringify(res.body)).not.toMatch(/monto|valorUnitario|costo|precio/i);
     });
 
     it('el panel del administrador incluye la conciliación del mes', async () => {

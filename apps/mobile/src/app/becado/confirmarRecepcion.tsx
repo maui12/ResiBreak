@@ -17,7 +17,6 @@ import {
 import { NOMBRES_MESES, fechaDesdeClave, formatoFechaLarga } from '@/utils/fechas';
 
 const PLURAL: Record<string, string> = { desayuno: 'Desayunos', almuerzo: 'Almuerzos', once: 'Onces', cena: 'Cenas' };
-const clp = (v: number) => `$${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 
 function preguntar(c: ComidaPedida): Promise<boolean> {
   const titulo = 'Confirmar recepción';
@@ -33,7 +32,8 @@ function preguntar(c: ComidaPedida): Promise<boolean> {
 
 /**
  * El residente confirma en su cuenta cada comida que recibe. Esa confirmación, junto con la del
- * proveedor, se suma a los totales de desayunos, almuerzos, onces y cenas (cada uno con su precio).
+ * proveedor, se suma a los totales de desayunos, almuerzos, onces y cenas. El residente solo ve
+ * cantidades: los precios y montos son para administración.
  */
 export default function ConfirmarRecepcionScreen() {
   const [datos, setDatos] = useState<Recepciones | null>(null);
@@ -156,26 +156,22 @@ export default function ConfirmarRecepcionScreen() {
                   <Text style={[styles.celda, styles.celdaNombre, styles.cabeceraTexto]}>Comida</Text>
                   <Text style={[styles.celda, styles.cabeceraTexto]}>Pedidas</Text>
                   <Text style={[styles.celda, styles.cabeceraTexto]}>Recibidas</Text>
-                  <Text style={[styles.celda, styles.cabeceraTexto]}>Valor</Text>
                 </View>
                 {datos.totales.porTipo.map((t) => (
                   <View key={t.tipoComida} style={styles.filaTabla}>
                     <Text style={[styles.celda, styles.celdaNombre]}>{PLURAL[t.tipoComida]}</Text>
                     <Text style={styles.celda}>{t.programadas}</Text>
                     <Text style={styles.celda}>{t.confirmadasResidente}</Text>
-                    <Text style={styles.celda}>{clp(t.montoConciliado)}</Text>
                   </View>
                 ))}
                 <View style={[styles.filaTabla, styles.filaTotal]}>
                   <Text style={[styles.celda, styles.celdaNombre, styles.negrita]}>Total</Text>
                   <Text style={[styles.celda, styles.negrita]}>{datos.totales.total.programadas}</Text>
                   <Text style={[styles.celda, styles.negrita]}>{datos.totales.total.confirmadasResidente}</Text>
-                  <Text style={[styles.celda, styles.negrita]}>{clp(datos.totales.total.montoConciliado)}</Text>
                 </View>
               </View>
               <Text style={styles.nota}>
-                Valor: suma de las comidas confirmadas por ti y por el proveedor, cada una con su precio (desayuno, almuerzo,
-                once y cena tienen precios distintos).
+                Pedidas: comidas agendadas en el mes (sin las canceladas). Recibidas: las que confirmaste aquí.
               </Text>
             </>
           )}

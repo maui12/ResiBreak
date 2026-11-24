@@ -27,6 +27,13 @@ export class Usuario {
   @Column({ type: 'varchar', length: 20, default: Rol.RESIDENTE })
   rol: Rol;
 
+  /**
+   * Nombre de administradores, consulta y proveedores. En los residentes es null: su nombre está
+   * en la ficha (becados.nombre).
+   */
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  nombre: string | null;
+
   /** Correo (en minúsculas) para la bienvenida y la recuperación de contraseña. Opcional y único. */
   @Column({ type: 'varchar', length: 254, nullable: true })
   email: string | null;

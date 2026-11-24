@@ -26,7 +26,7 @@ export const MENU_ADMIN: MenuSidebar = {
     { titulo: 'Pedidos', descripcion: 'Comidas y repartos', icono: '▤', ruta: '/admin/pedidos' },
     { titulo: 'Informes', descripcion: 'Reportes por hospital', icono: '▥', ruta: '/admin/informes' },
     { titulo: 'Notificaciones', descripcion: 'Pedidos cancelados por becados', icono: '🔔', ruta: '/admin/notificaciones' },
-    { titulo: 'Usuarios', descripcion: 'Agregar residentes nuevos', icono: '👥', ruta: '/admin/usuarios', roles: ['admin'] },
+    { titulo: 'Usuarios', descripcion: 'Residentes, administradores y proveedores', icono: '👥', ruta: '/admin/usuarios', roles: ['admin'] },
     { titulo: 'Configuración', descripcion: 'Reglas y costos', icono: '⚙', ruta: '/admin/configuracion' },
   ],
 };

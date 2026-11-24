@@ -7,6 +7,9 @@ import Configuracion from './pages/Admin/Configuracion/Configuracion.tsx';
 import Informes from './pages/Admin/Informes/Informes.tsx';
 import Panel from './pages/Admin/Panel/Panel.tsx';
 import Pedidos from './pages/Admin/Pedidos/Pedidos.tsx';
+import AgregarUsuario from './pages/Admin/Usuarios/AgregarUsuario.tsx';
+import EditarUsuario from './pages/Admin/Usuarios/EditarUsuario.tsx';
+import ListaUsuarios from './pages/Admin/Usuarios/ListaUsuarios.tsx';
 import Usuarios from './pages/Admin/Usuarios/Usuarios.tsx';
 import Login from './pages/Login/Login.tsx';
 import HistorialPedidos from './pages/Proveedor/Historial/HistorialPedidos.tsx';
@@ -29,14 +32,13 @@ function App() {
           <Route path="becados" element={<Becados />} />
           <Route path="informes" element={<Informes />} />
           <Route path="pedidos" element={<Pedidos />} />
-          <Route
-            path="usuarios"
-            element={
-              <RutaProtegida roles={SOLO_ADMIN}>
-                <Usuarios />
-              </RutaProtegida>
-            }
-          />
+          {/* Administrar usuarios: solo admin (consulta no puede modificar cuentas). */}
+          <Route path="usuarios" element={<RutaProtegida roles={SOLO_ADMIN} />}>
+            <Route index element={<Usuarios />} />
+            <Route path=":tipo" element={<ListaUsuarios />} />
+            <Route path=":tipo/agregar" element={<AgregarUsuario />} />
+            <Route path=":tipo/:id" element={<EditarUsuario />} />
+          </Route>
         </Route>
       </Route>
 

@@ -4,8 +4,14 @@ El administrador sube el Excel con el listado de residentes. La app muestra **so
 las especialidades nuevos** y deja quitar los que no correspondan. Al confirmar, crea las fichas
 (`becados`) y las cuentas de acceso (`usuarios` con rol residente).
 
-Está disponible en la **web** (menú *Usuarios* → *Agregar residentes nuevos*) y en la **app móvil**
-(menú lateral *Usuarios* → *Agregar residentes nuevos*). Solo la ve y la usa el rol **admin**.
+Está disponible en la **web** y en la **app móvil**: menú *Usuarios* → sección *Residentes* →
+*Agregar residente* → selector **Cargar desde Excel**. La otra opción del selector, *Agregar
+manualmente*, crea un residente a la vez con `POST /api/usuarios/residentes`. Solo la ve y la usa
+el rol **admin**.
+
+La pantalla *Administrar usuarios* tiene tres secciones: Residentes, Administradores (incluye solo
+consulta) y Proveedores. Cada una tiene **Agregar** y **Editar**, con una lista filtrable y una
+pantalla de edición. Las rutas de la API están en `src/auth/usuarios.controller.ts`.
 
 ---
 
@@ -230,18 +236,19 @@ móvil no necesita librerías de Excel y la validación siempre ocurre en el ser
 | `test/importacion.e2e-spec.ts` | 5 tests e2e: vista previa, archivos inválidos, confirmación, todo o nada, permisos. |
 | `src/auth/usuario.entity.ts` | Columnas nuevas `email` (única, opcional) y `debeCambiarClave`, y la constante `CLAVE_PENDIENTE`. |
 | `src/migrations/correoUsuarios.ts` | Migración de esas columnas para producción (idempotente). |
+| `src/auth/residentes.ts` | `crearResidentes()` y `unificarEspecialidades()`, compartidas con el alta manual. |
 | `src/auth/auth.service.ts` | Una cuenta con `CLAVE_PENDIENTE` no puede iniciar sesión, en tiempo constante. |
 
 **Web** (`apps/web/src`):
 
 | Archivo | Qué hace |
 | ------- | -------- |
-| `pages/Admin/Usuarios/Usuarios.tsx` | Pantalla *Administrar usuarios* con la opción *Agregar residentes nuevos*. |
+| `pages/Admin/Usuarios/AgregarUsuario.tsx` | *Agregar residente*, con el selector Excel / manual. |
 | `pages/Admin/Usuarios/ImportarResidentes.tsx` | Flujo completo: elegir, revisar, confirmar y resultado. |
 | `pages/Admin/Usuarios/importacion.service.ts` | Llamadas a la API y cálculo de las especialidades nuevas. |
 | `pages/Admin/Usuarios/importacion.types.ts` | Tipos de las respuestas. |
 | `pages/Admin/Usuarios/Usuarios.css` | Estilos. |
-| `App.tsx`, `pages/Admin/Dashboard/AdminDashboard.tsx` | Ruta `/admin/usuarios` y entrada del menú, solo para el admin. |
+| `App.tsx`, `pages/Admin/Dashboard/AdminDashboard.tsx` | Rutas `/admin/usuarios/...` y entrada del menú, solo para el admin. |
 | `utils/api.ts` | `api()` acepta `FormData`. |
 | `utils/roles.ts` | Constante `SOLO_ADMIN`. |
 
@@ -249,8 +256,8 @@ móvil no necesita librerías de Excel y la validación siempre ocurre en el ser
 
 | Archivo | Qué hace |
 | ------- | -------- |
-| `app/admin/usuarios.tsx` | Pantalla *Administrar usuarios*. |
-| `app/admin/importarResidentes.tsx` | Flujo completo. El aviso usa `Alert` con Cancelar/Aceptar, o `window.confirm` en Expo web. |
+| `app/admin/usuarios/[tipo]/agregar.tsx` | *Agregar residente*, con el selector Excel / manual. |
+| `components/admin/usuarios/ImportarExcel.tsx` | Flujo completo. El aviso usa `Alert` con Cancelar/Aceptar, o `window.confirm` en Expo web (`utils/confirmar.ts`). |
 | `services/importacion.service.ts` | Selector de archivos, subida (`{ uri, name, type }` en nativo; `File` en web) y llamadas a la API. |
 | `constants/menus.ts`, `components/Sidebar/Sidebar.tsx` | Opción *Usuarios* en el menú, filtrada por rol. |
 | `api.ts` | `peticion()` acepta `FormData`. |
@@ -317,14 +324,14 @@ arrancar. En producción (`DB_MIGRAR=true`) las crea la migración `CorreoUsuari
    - que `POST /auth/login` devuelva `debeCambiarClave`;
    - crear un endpoint `POST /auth/cambiar-clave`;
    - en la web y el móvil, llevar a una pantalla de cambio de clave cuando venga en `true`.
-3. **Registrar o editar el correo** de un residente que quedó sin él: hoy `PATCH /usuarios/:id` no
-   acepta `email`. Agregarlo al DTO, junto con un botón *Reenviar bienvenida*.
+3. **Reenviar bienvenida**: el correo ya se puede registrar o editar desde *Editar residentes*. Falta
+   un botón *Reenviar bienvenida* cuando exista el envío.
 4. **Reactivar desde la carga** a los residentes desactivados que vuelven a aparecer en el Excel.
    Hoy solo se informan.
 5. **Actualizar datos de residentes existentes** (nombre, especialidad o correo distintos en el
    Excel). Hoy los registrados se ignoran.
-6. **Resto de *Administrar usuarios***: listar cuentas, crear proveedores y usuarios de consulta,
-   desactivar, restablecer contraseña.
+6. ~~Resto de *Administrar usuarios*~~: hecho (listas por tipo, alta manual de cada tipo, edición,
+   desactivar y asignar contraseña temporal).
 7. **Tabla de especialidades** (opcional): si se quiere un catálogo controlado en vez de texto
    libre.
 8. **Plantilla descargable** del Excel desde la propia pantalla.

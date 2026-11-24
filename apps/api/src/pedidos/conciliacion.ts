@@ -65,6 +65,17 @@ const SQL = `
     AND ($3::int IS NULL OR p."becadoId" = $3)
   GROUP BY p."tipoComida"`;
 
+const MONTOS = ['montoProgramado', 'montoEntregadoProveedor', 'montoConciliado'] as const;
+type Monto = (typeof MONTOS)[number];
+export type TotalComidaSinMontos = Omit<TotalComida, Monto>;
+
+/** Los mismos totales, solo con cantidades: el residente no ve precios ni montos. */
+export function sinMontos(c: Conciliacion) {
+  const quitar = <T extends Partial<TotalComida>>(t: T) =>
+    Object.fromEntries(Object.entries(t).filter(([k]) => !(MONTOS as readonly string[]).includes(k))) as Omit<T, Monto>;
+  return { desde: c.desde, hasta: c.hasta, porTipo: c.porTipo.map(quitar), total: quitar(c.total) };
+}
+
 /** Totales por tipo de comida entre dos fechas (incluidas). Con `becadoId`, solo los de ese residente. */
 export async function conciliar(
   pedidos: Repository<Pedido>,

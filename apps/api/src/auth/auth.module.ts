@@ -5,6 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Becado } from '../becados/becado.entity.js';
 import { JWT_EXPIRA_MAX_SEGUNDOS } from '../env.validation.js';
+import { TurnosDisponiblesModule } from '../turnos-disponibles/turnos-disponibles.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
@@ -16,6 +17,7 @@ import { UsuariosService } from './usuarios.service.js';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Usuario, Becado]),
+    TurnosDisponiblesModule, // lista de especialidades (alta y edición de residentes)
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (c: ConfigService) => ({

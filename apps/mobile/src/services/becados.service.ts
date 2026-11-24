@@ -248,6 +248,7 @@ export function cancelarPedido(fecha: string, motivo?: string): Promise<Resultad
 
 /* -------------------------- Confirmación de recepción -------------------------- */
 
+/** Cantidades del mes por tipo de comida. Sin montos: el residente no ve precios. */
 export interface TotalComidaResidente {
   tipoComida: TipoComida;
   programadas: number;
@@ -256,9 +257,6 @@ export interface TotalComidaResidente {
   conciliadas: number;
   soloProveedor: number;
   soloResidente: number;
-  montoProgramado: number;
-  montoEntregadoProveedor: number;
-  montoConciliado: number;
 }
 
 export interface Recepciones {

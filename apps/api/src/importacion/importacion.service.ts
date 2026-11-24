@@ -1,9 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
-import { CLAVE_PENDIENTE, Usuario } from '../auth/usuario.entity.js';
+import { crearResidentes, unificarEspecialidades } from '../auth/residentes.js';
+import { Usuario } from '../auth/usuario.entity.js';
 import { Becado } from '../becados/becado.entity.js';
-import { Rol } from '../common/roles.js';
 import { TurnosDisponiblesService } from '../turnos-disponibles/turnos-disponibles.service.js';
 import type { ConfirmarImportacionDto } from './dto/importacion.dto.js';
 import { ArchivoInvalidoError, type ErrorFila, leerResidentesDeExcel, normalizarTexto } from './excel.js';
@@ -143,48 +143,13 @@ export class ImportacionService {
     const correosRepetidos = repetidos(correos);
     if (correosRepetidos.length) throw new BadRequestException(`Correos repetidos en la lista: ${correosRepetidos.join(', ')}`);
 
-    const canonica = new Map((await this.turnosDisponibles.especialidades()).map((e) => [normalizarTexto(e), e]));
-    const residentes = dto.residentes.map((r) => {
-      const clave = normalizarTexto(r.especialidad);
-      if (!canonica.has(clave)) canonica.set(clave, r.especialidad); // nueva: todas usan la misma forma
-      return { ...r, especialidad: canonica.get(clave)!, correo: r.correo ?? null };
-    });
-
-    const creados = await this.ds.transaction(async (m) => {
-      const ruts = residentes.map((r) => r.rut);
-      // En secuencia: una transacción usa una sola conexión y no admite consultas en paralelo.
-      const conFicha = await m.find(Becado, { where: { rut: In(ruts) }, select: { id: true, rut: true } });
-      const conCuenta = await m.find(Usuario, { where: { rut: In(ruts) }, select: { id: true, rut: true } });
-      const conCorreo = correos.length
-        ? await m.find(Usuario, { where: { email: In(correos) }, select: { id: true, email: true } })
-        : [];
-      const registrados = [...new Set([...conFicha, ...conCuenta].map((x) => x.rut!))];
-      if (registrados.length) {
-        throw new ConflictException(`Estos RUT ya están registrados: ${registrados.join(', ')}. Vuelve a cargar el archivo.`);
-      }
-      if (conCorreo.length) {
-        throw new ConflictException(`Estos correos ya los usa otra cuenta: ${conCorreo.map((u) => u.email).join(', ')}`);
-      }
-
-      const fichas = await m.save(
-        Becado,
-        residentes.map((r) => m.create(Becado, { rut: r.rut, nombre: r.nombre, especialidad: r.especialidad })),
-      );
-      await m.save(
-        Usuario,
-        fichas.map((b, i) =>
-          m.create(Usuario, {
-            rut: b.rut!,
-            passwordHash: CLAVE_PENDIENTE,
-            rol: Rol.RESIDENTE,
-            becadoId: b.id,
-            email: residentes[i].correo,
-            debeCambiarClave: true,
-          }),
-        ),
-      );
-      return fichas.map((b, i) => ({ becadoId: b.id, ...residentes[i] }));
-    });
+    const residentes = unificarEspecialidades(
+      dto.residentes.map((r) => ({ rut: r.rut, nombre: r.nombre, especialidad: r.especialidad, correo: r.correo ?? null })),
+      await this.turnosDisponibles.especialidades(),
+    );
+    const creados = (await this.ds.transaction((m) => crearResidentes(m, residentes))).map(
+      ({ usuarioId: _usuarioId, ...r }) => r,
+    );
 
     const sinCorreo = creados.filter((r) => !r.correo).length;
     this.logger.log(`Importación desde Excel: ${creados.length} residentes creados (${sinCorreo} sin correo)`);
