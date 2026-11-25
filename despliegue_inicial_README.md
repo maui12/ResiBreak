@@ -19,32 +19,39 @@ Se parte con el plan gratuito de Render y se pasa a pago al final. Hay dos entor
 | Google Play | **Único** | US$25 al crear la cuenta de desarrollador. Sin cuota anual. |
 | Render | **Mensual** (al pasar a pago) | API y base oficiales. Los sitios estáticos y el entorno de pruebas siguen gratis. Precios en render.com/pricing. |
 | EAS (Expo) | Gratis; mensual solo si se elige un plan pagado | Ver [Costos de EAS](#costos-de-eas). El plan gratuito no cobra excedentes. |
-| Servicio de correo | Gratis o mensual | Ver [11. Servicio de correo electrónico](#11-servicio-de-correo-electrónico). Para el volumen de ResiBreak, el plan gratuito suele alcanzar. |
-| Dominio propio | Anual | Opcional para las URLs, pero **necesario para enviar correo** desde un remitente verificado. Según el proveedor. |
+| Correo (Gmail dedicado) | Gratis | Ver [11. Servicio de correo electrónico](#11-servicio-de-correo-electrónico). |
+| Dominio propio | Anual (opcional) | No es necesario con Gmail dedicado. Solo si se quieren URLs propias o la alternativa de correo con Resend. |
 
-### Costo necesario para producción
+### Presupuesto final para producción
 
-Es la configuración que se usa en esta guía: **API y base pagadas en Render, con dominio propio y correo por Resend.**
+Configuración elegida:
+- **Render pagado:** API, base de datos y las dos webs.
+- **Google Play.**
+- **Gmail dedicado** para el correo.
+
+No hace falta dominio propio. El entorno de pruebas usa Render gratis y no se usa en producción.
 
 Los precios de Render son aproximados (la instancia más pequeña de cada uno). Confírmalos en render.com/pricing antes de contratar.
 
 | Concepto | Tipo de pago | Costo aproximado |
 |---|---|---|
-| Google Play | Único | US$25 |
+| Google Play (cuenta de desarrollador) | Único | US$25 |
 | API en Render (instancia pagada más pequeña) | Mensual | ~US$7 |
 | Base de datos en Render (pagada más pequeña) | Mensual | ~US$6, más almacenamiento por GB |
-| Dominio propio (por ejemplo `.cl` en NIC Chile) | Anual | Según el registrador |
-| Correo con Resend (plan gratuito: 3.000 al mes, máximo 100 al día) | Gratis | US$0 |
-| Sitios estáticos: web de administración y Expo web | Gratis | US$0 |
-| Entorno de pruebas: API y base Free | Gratis | US$0 |
+| Webs en Render: administración y proveedor, y Expo web para iPhone | — | US$0 (los sitios estáticos de Render son gratis, también en un workspace con servicios pagados) |
+| Correo: Gmail dedicado con contraseña de aplicación | Gratis | US$0 |
 | EAS: compilar y actualizar la app | Gratis | US$0 |
+| Entorno de pruebas: API, base y webs en Render Free | Gratis | US$0 |
 | **Total mensual** | | **~US$13**, más almacenamiento |
-| **Primer año** | | **~US$181**, más el dominio |
-| **Años siguientes** | | **~US$156**, más el dominio |
+| **Primer año** (incluye Google Play) | | **~US$181** |
+| **Años siguientes** | | **~US$156** |
 
 - Render cobra por tiempo encendido: un servicio suspendido deja de cobrarse.
 - No hace falta el plan "Professional" de Render, que cobra por usuario del equipo. El workspace básico permite servicios pagados.
-- Si Resend se queda corto (más de 100 correos al día), su plan Pro cuesta US$20 al mes. Ver la [sección 11](#11-servicio-de-correo-electrónico).
+- El almacenamiento de la base se cobra por GB al mes. Para el volumen de datos de ResiBreak, el mínimo debería sobrar.
+- **Costos que podrían aparecer más adelante:**
+  - un plan pagado de EAS (Starter, US$19 al mes) si se necesitan más de 15 compilaciones al mes;
+  - un dominio propio (pago anual) si se quiere un remitente o URLs propias.
 
 ### Costos de EAS
 
@@ -402,7 +409,49 @@ La API tiene un módulo de correo (`apps/api/src/correo`, con su propio `README.
 
 **Pendiente [código]:** el **correo de bienvenida con la clave temporal** para los residentes nuevos todavía no se envía. La API responde `correosEnviados: 0`, y la web y la app tienen `CORREO_BIENVENIDA_HABILITADO = false`. Hay que implementarlo antes de activar el servicio.
 
-### Requisitos
+**Entorno de pruebas:** siempre con `CORREO_PROVEEDOR=consola`, para no escribir a personas reales.
+
+### Opción elegida: Gmail dedicado con contraseña de aplicación
+
+La API envía los correos a través del servidor de Gmail, usando una cuenta creada solo para la app. **No requiere dominio propio ni pago.**
+
+**Qué es cada parte:**
+- **Gmail dedicado:** una cuenta nueva solo para la app, por ejemplo `resibreak.notificaciones@gmail.com`. No se usa un correo personal: la clave queda en el servidor, Google podría bloquear la cuenta por los envíos automáticos y esa dirección es la que ven los residentes.
+- **Contraseña de aplicación:** Google no permite que un programa entre con la contraseña normal. Se crea una clave de 16 caracteres que solo sirve para enviar correo, y se puede anular sin tocar la contraseña de la cuenta.
+- **`smtp.gmail.com`, puerto 587:** el servidor de envío de Gmail. El módulo de la API ya lo soporta: en el 587 cifra la conexión antes de autenticarse (STARTTLS), como exige Gmail.
+
+**Pasos:**
+1. **Crea la cuenta de Gmail** dedicada y guarda su contraseña en un lugar seguro, como un gestor de contraseñas.
+2. En esa cuenta, ve a *Gestionar tu cuenta de Google → Seguridad* y activa la **verificación en 2 pasos**. Es obligatoria para el paso siguiente.
+3. En la misma sección, busca **"Contraseñas de aplicaciones"**, crea una llamada "ResiBreak API" y copia la clave de 16 caracteres.
+4. **Prueba en local** con estas variables en `apps/api/.env`. Para pruebas sin enviar de verdad, también se puede usar Mailpit (`docker compose --profile correo up -d mailpit`, puerto 1025).
+5. **Configura la API oficial en Render:**
+
+   | Variable | Valor |
+   |---|---|
+   | `CORREO_PROVEEDOR` | `smtp` |
+   | `SMTP_HOST` | `smtp.gmail.com` |
+   | `SMTP_PORT` | `587` |
+   | `SMTP_USER` | `resibreak.notificaciones@gmail.com` |
+   | `SMTP_PASS` | La contraseña de aplicación, sin espacios |
+   | `CORREO_REMITENTE` | `ResiBreak <resibreak.notificaciones@gmail.com>` (debe ser la misma dirección de Gmail) |
+   | `CORREO_URL_APP` | URL pública de la web o la app |
+
+6. **Vuelve a desplegar.** Si falta alguna variable, la API no arranca y el log dice cuál es.
+7. **Envía un correo de prueba** con el endpoint de prueba del módulo (ver `apps/api/src/correo/README.md`) a una cuenta de Gmail y a una institucional. Revisa que llegue a la bandeja de entrada.
+
+**A tener en cuenta:**
+- **Requiere Render pagado:** el plan gratuito bloquea el puerto 587. El entorno de pruebas no envía correos, así que no le afecta.
+- **Límite:** unos **500 correos al día** en cuentas gratuitas. Si se supera, Gmail deja de enviar por unas horas. Alcanza para los correos de bienvenida, salvo una carga de Excel muy grande en un solo día.
+- **Google puede bloquear la cuenta temporalmente** si detecta actividad inusual, como muchos envíos seguidos. No es un servicio de envío para aplicaciones: funciona, pero sin garantías.
+- **La misma cuenta sirve para recibir.** Puede ser el **correo de contacto en Google Play** y la dirección para las solicitudes de privacidad.
+- **Si la clave se filtra:** anula la contraseña de aplicación en la cuenta de Google, crea otra y actualiza `SMTP_PASS` en Render.
+
+### Alternativa: dominio propio y proveedor de correo
+
+Sirve si más adelante se quiere un remitente propio (por ejemplo `no-responder@resibreak.cl`) o un volumen mayor de envíos.
+
+#### Requisitos
 
 1. **Un dominio propio** (por ejemplo `resibreak.cl`). Los proveedores exigen verificar el dominio del remitente, agregando registros **SPF, DKIM y DMARC** en el DNS. Sin esto, los correos no salen o llegan a spam. No sirve un remitente `@gmail.com`.
 2. **Una cuenta en un proveedor de correo transaccional,** de la que se obtienen el usuario y la clave SMTP.
@@ -413,7 +462,7 @@ La API tiene un módulo de correo (`apps/api/src/correo`, con su propio `README.
 > **Ojo con los puertos.** El módulo activa TLS directo solo en el puerto **465**. En los demás, se conecta sin cifrar y exige pasar a TLS antes de autenticarse (STARTTLS).
 > Por eso, en el plan gratuito sirve un puerto STARTTLS alternativo (**2587** o **2525**). Un puerto de TLS directo distinto del 465 (por ejemplo **2465**) fallaría sin un cambio de código.
 
-### Proveedores
+#### Proveedores
 
 Datos de sus páginas de precios a la fecha de esta guía. Verifícalos antes de elegir.
 
@@ -425,14 +474,14 @@ Datos de sus páginas de precios a la fecha de esta guía. Verifícalos antes de
 | **Amazon SES** | Créditos por 6 meses; luego pago por uso. | Desde US$0,10 por cada 1.000 correos, sin cuota fija | Sin confirmar; su configuración es más compleja (cuenta AWS y salir del modo sandbox). |
 | **Cuenta institucional** (por ejemplo Office 365) | Incluida | — | Usa 587, bloqueado en Render gratis. Además, el servidor debe tener habilitada la autenticación SMTP; hoy responde `535 Authentication failed`, así que hay que pedirlo a TI. |
 
-**Recomendación:** Resend por el puerto 2587. Funcionaría desde el plan gratuito de Render sin cambiar código (no está probado aún) y su plan gratuito es permanente.
+Dentro de esta alternativa, lo más conveniente es **Resend por el puerto 2587**. Funcionaría incluso desde el plan gratuito de Render sin cambiar código (no está probado) y su plan gratuito es permanente. Sin dominio verificado, Resend solo permite enviar al correo de la propia cuenta.
 
 **Límite diario a considerar:** una carga de Excel con muchos residentes nuevos envía un correo de bienvenida por cada uno. Con un tope de 100 al día, una carga de 150 residentes no alcanzaría a enviarse completa ese día.
 - Opción 1: hacer las cargas grandes en partes.
 - Opción 2: que el envío se reparta en el tiempo **[código]**.
 - Opción 3: pasar a un plan pagado.
 
-### Pasos para activarlo
+#### Pasos (ejemplo con Resend)
 
 1. **Compra el dominio** y entra a la configuración de su DNS.
 2. **Crea la cuenta** en el proveedor y **agrega el dominio**. Copia en el DNS los registros que te entregue (SPF, DKIM y DMARC) y espera a que aparezca como verificado.
@@ -452,4 +501,3 @@ Datos de sus páginas de precios a la fecha de esta guía. Verifícalos antes de
 
 6. **Vuelve a desplegar.** Si falta alguna variable, la API no arranca y el log dice cuál es.
 7. **Envía un correo de prueba** con el endpoint de prueba del módulo (ver `apps/api/src/correo/README.md`) y revisa que llegue a la bandeja de entrada, no a spam.
-8. **Entorno de pruebas:** déjalo siempre con `CORREO_PROVEEDOR=consola`, para no escribir a personas reales.
