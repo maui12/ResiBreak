@@ -80,18 +80,10 @@ Según expo.dev/pricing:
 
 ## 1. Preparar el código [código]
 
-1. **Migración inicial.** Hoy las migraciones de `apps/api/src/migrations` solo agregan columnas, y en producción la API prohíbe `DB_SYNC=true`. Hace falta una migración que cree todas las tablas.
-   - Crea una base local vacía:
-     ```
-     docker exec resibreak-db-1 createdb -U becados becados_vacia
-     ```
-   - Genera la migración en `apps/api`:
-     ```
-     pnpm build
-     $env:DB_NAME='becados_vacia'; pnpm migration:generate src/migrations/inicial
-     ```
-   - Ponle una fecha (el número al final del nombre de la clase) **anterior** a las migraciones existentes, por ejemplo `Inicial1763000000000`. Así corre primero, y las demás quedan sin efecto porque usan `IF NOT EXISTS`.
-   - Pruébala: recrea la base vacía, aplica con `pnpm migration:run`, levanta la API contra esa base y entra como administrador.
+1. **Migración inicial. Hecho:** `apps/api/src/migrations/inicial.ts` crea todas las tablas en una base vacía.
+   - Tiene la fecha más antigua (`Inicial1763000000000`), así que corre primero; las migraciones siguientes quedan sin efecto en una base nueva.
+   - Si las tablas ya existen (una base creada con `DB_SYNC=true`), no hace nada.
+   - Se probó así: una base vacía, la API con `NODE_ENV=production`, `DB_SYNC=false` y `DB_MIGRAR=true`, la creación del administrador, el login, y que no hubiera diferencias entre la base y las entidades.
 2. **Trabajar en local con migraciones.** Usa una base nueva (por ejemplo `becados_dev`) con `DB_SYNC=false` y `DB_MIGRAR=true` en `apps/api/.env`. Con `DB_SYNC=true`, `migration:generate` no detecta los cambios.
 3. **Nombre del paquete definitivo,** por ejemplo `cl.ucn.resibreak`. En Google Play **no se puede cambiar nunca**.
 4. **`app.config.ts` con dos variantes** (reemplaza a `app.json`):
@@ -107,7 +99,7 @@ Según expo.dev/pricing:
    - para qué se usan y quién los ve;
    - cuánto tiempo se conservan;
    - a quién escribir para pedir su eliminación.
-8. **`.node-version`** en la raíz, con Node 22 o superior. Los scripts de migraciones usan `--env-file-if-exists`. Si Render no lo lee, usa la variable `NODE_VERSION`.
+8. **`.node-version`. Hecho:** está en la raíz con `22`. Los scripts de migraciones usan `--env-file-if-exists`, que requiere Node 22. Si Render no lo lee, usa la variable `NODE_VERSION=22`.
 9. **(Opcional)** Un workflow de GitHub Actions que corra los tests unitarios y e2e en cada PR, con un Postgres de servicio.
 
 Une todo a `main`.

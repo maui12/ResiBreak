@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -37,7 +38,7 @@ import { TurnosDisponiblesModule } from './turnos-disponibles/turnos-disponibles
         // Solo para desarrollo. En producción: DB_SYNC=false (lo exige env.validation.ts) y migraciones.
         synchronize: c.get<string>('DB_SYNC') === 'true',
         // Migraciones compiladas (dist/migrations). Con DB_MIGRAR=true se aplican las pendientes al iniciar.
-        migrations: [new URL('./migrations/*.js', import.meta.url).pathname],
+        migrations: [fileURLToPath(new URL('./migrations/*.js', import.meta.url))],
         migrationsRun: c.get<string>('DB_MIGRAR') === 'true',
       }),
     }),
