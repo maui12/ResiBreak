@@ -178,6 +178,24 @@
   background: var(--nt-violeta-suave);
 }
 
+.pedidos-nota {
+  margin: 0.75rem 0 0;
+  color: var(--nt-texto-suave);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.distribution-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.dia-cell {
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
 .manager-notice p {
   margin: 0;
   color: var(--nt-texto-suave);

@@ -59,7 +59,7 @@ function Lista({ tipo }: { tipo: TipoUsuario }) {
       <header className="usuarios-encabezado">
         <div>
           <Migas tramos={[{ texto: config.titulo }]} />
-          <h1 className="usuarios-titulo">Editar {config.titulo.toLowerCase()}</h1>
+          <h1 className="usuarios-titulo titulo-visible">Editar {config.titulo.toLowerCase()}</h1>
         </div>
         <Link className="boton-primario" to={`/admin/usuarios/${tipo}/agregar`}>
           Agregar {config.singular}

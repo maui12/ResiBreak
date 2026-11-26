@@ -1,278 +1,298 @@
 import { useState } from 'react';
-import { DIAS_SEMANA, generarMes } from '../../../utils/turnos';
+import { Link } from 'react-router-dom';
+import EstadoCarga from '../../../components/EstadoCarga/EstadoCarga';
+import SelectorMes from '../../../components/SelectorMes/SelectorMes';
+import { obtenerCalendario, obtenerResumenPanel } from '../../../services/admin.service';
+import { NOMBRE_COMIDA } from '../../../services/comun';
+import { CABECERA_SEMANA, NOMBRES_MESES, claveFecha, huecosInicioMes, periodoActual } from '../../../utils/fechas';
+import { formatoNumero, formatoPesos } from '../../../utils/formato';
+import { useCarga } from '../../../utils/useCarga';
 import './Panel.css';
 
-/* ------------------------------------------------------------------
-   DATOS DE EJEMPLO (los del mockup).
-   Más adelante se reemplazan por la respuesta del backend,
-   por ejemplo con un hook useResumen() que llame a GET /dashboard/resumen.
-------------------------------------------------------------------- */
-const PERIODOS = ['Semanal', 'Mensual', 'Trimestral', 'Anual'] as const;
-type Periodo = (typeof PERIODOS)[number];
+const COLORES_BARRAS = ['var(--nt-celeste)', 'var(--nt-verde)', 'var(--nt-violeta)', 'var(--nt-ambar)', 'var(--nt-rojo)'];
 
-const ANIO = 2026;
-const MES = 5; // junio (0 = enero)
-const DIA_HOY = 15;
-
-const TURNOS_POR_DIA: Record<number, number> = {
-  3: 14,
-  4: 8,
-  5: 9,
-  6: 11,
-  7: 7,
-  10: 10,
-  12: 9,
-  13: 12,
-};
-const DIAS_CON_ALERTA = [10];
-
-const ESPECIALIDADES = [
-  { nombre: 'Medicina Interna', comidas: 64, color: 'var(--nt-celeste)' },
-  { nombre: 'Cirugía', comidas: 51, color: 'var(--nt-verde)' },
-  { nombre: 'Pediatría', comidas: 38, color: 'var(--nt-violeta)' },
-  { nombre: 'Ginecología', comidas: 29, color: 'var(--nt-ambar)' },
-  { nombre: 'Cardiología', comidas: 24, color: 'var(--nt-rojo)' },
-  { nombre: 'Urgencias', comidas: 19, color: 'var(--nt-celeste)' },
-];
-
-const CONTABILIDAD = [
-  { rubro: 'Desayuno', cantidad: 132, costoUnitario: 4200 },
-  { rubro: 'Almuerzo', cantidad: 141, costoUnitario: 6500 },
-  { rubro: 'Once', cantidad: 118, costoUnitario: 3800 },
-  { rubro: 'Cena', cantidad: 137, costoUnitario: 6200 },
-];
-
-const formatearPesos = (valor: number) =>
-  new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
-    maximumFractionDigits: 0,
-  }).format(valor);
-
-/* ------------------------------------------------------------------
-   Tarjeta KPI. Cuando la uses en otra página, muévela a
-   src/components/ui/KpiCard/ y expórtala desde ahí.
-------------------------------------------------------------------- */
 interface KpiCardProps {
   etiqueta: string;
   valor: string;
   detalle: string;
-  tono?: 'normal' | 'positivo' | 'alerta';
+  alerta?: boolean;
+  enlace?: { texto: string; ruta: string };
 }
 
-function KpiCard({ etiqueta, valor, detalle, tono = 'normal' }: KpiCardProps) {
+function KpiCard({ etiqueta, valor, detalle, alerta = false, enlace }: KpiCardProps) {
   return (
     <article className="panel-tarjeta panel-kpi">
       <h3 className="panel-kpi-etiqueta">{etiqueta}</h3>
-      <p className={`panel-kpi-valor ${tono === 'alerta' ? 'panel-kpi-valor--alerta' : ''}`}>
-        {valor}
-      </p>
-      <p className={`panel-kpi-detalle ${tono === 'positivo' ? 'panel-kpi-detalle--positivo' : ''}`}>
-        {detalle}
-      </p>
+      <p className={`panel-kpi-valor ${alerta ? 'panel-kpi-valor--alerta' : ''}`}>{valor}</p>
+      <p className="panel-kpi-detalle">{detalle}</p>
+      {enlace && (
+        <Link className="panel-kpi-enlace" to={enlace.ruta}>
+          {enlace.texto} ›
+        </Link>
+      )}
     </article>
   );
 }
 
-/* ------------------------------------------------------------------
-   Página
-------------------------------------------------------------------- */
 function Panel() {
-  const [periodo, setPeriodo] = useState<Periodo>('Mensual');
-  const [diaSeleccionado, setDiaSeleccionado] = useState<number>(3);
+  const [periodo, setPeriodo] = useState(periodoActual);
+  const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null);
 
-  const celdas = generarMes(ANIO, MES);
-  const maxComidas = Math.max(...ESPECIALIDADES.map((e) => e.comidas));
+  const { datos, error, cargando, recargar } = useCarga(`${periodo.anio}-${periodo.mes}`, () =>
+    Promise.all([obtenerResumenPanel(periodo.anio, periodo.mes), obtenerCalendario(periodo.anio, periodo.mes)]),
+  );
+  const [resumen, calendario] = datos ?? [null, null];
+
+  const claveHoy = claveFecha(new Date());
+  const maxEspecialidad = Math.max(1, ...(resumen?.comidasPorEspecialidad ?? []).map((e) => e.cantidad));
+  const totalContabilidad = (resumen?.contabilidad ?? []).reduce(
+    (t, f) => ({ cantidad: t.cantidad + f.cantidad, total: t.total + f.total }),
+    { cantidad: 0, total: 0 },
+  );
+  const porcentaje =
+    resumen && resumen.comidasProgramadas > 0
+      ? Math.round((resumen.comidasRepartidas / resumen.comidasProgramadas) * 100)
+      : 0;
+  const detalleDia = calendario?.dias.find((d) => d.fecha === diaSeleccionado) ?? null;
 
   return (
     <div className="panel">
       <header className="panel-encabezado">
         <div>
-          <h1 className="panel-titulo">Panel de control · Junio 2025</h1>
-          <p className="panel-subtitulo">15 especialidades · 16 cuentas · 3 hospitales</p>
+          <h1 className="panel-titulo">
+            Panel de control · {NOMBRES_MESES[periodo.mes - 1]} {periodo.anio}
+          </h1>
+          <p className="panel-subtitulo">Métricas de pedidos y becados del mes</p>
         </div>
-
-        <div className="panel-periodos" role="group" aria-label="Periodo del resumen">
-          {PERIODOS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={`panel-periodo ${p === periodo ? 'panel-periodo--activo' : ''}`}
-              aria-pressed={p === periodo}
-              onClick={() => setPeriodo(p)}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
+        <SelectorMes
+          periodo={periodo}
+          onCambiar={(nuevo) => {
+            setPeriodo(nuevo);
+            setDiaSeleccionado(null);
+          }}
+        />
       </header>
 
-      {/* Fila de tarjetas KPI */}
-      <section className="panel-kpis" aria-label="Indicadores principales">
-        <KpiCard
-          etiqueta="Gasto del mes"
-          valor={formatearPesos(2847300)}
-          detalle="▲ 4,2% vs mayo"
-          tono="positivo"
-        />
-        <KpiCard etiqueta="Comidas repartidas" valor="428" detalle="de 452 programadas" />
-        <KpiCard etiqueta="Becados activos" valor="37" detalle="12 especialidades con turno" />
-        <KpiCard
-          etiqueta="Sobre el límite"
-          valor="2"
-          detalle="máximo 6 turnos/mes"
-          tono="alerta"
-        />
-      </section>
+      <EstadoCarga cargando={cargando} error={error} onReintentar={recargar}>
+        {resumen && calendario && (
+          <>
+            <section className="panel-kpis" aria-label="Indicadores principales">
+              <KpiCard etiqueta="Gasto del mes" valor={formatoPesos(resumen.gastoMes)} detalle="Sin pedidos cancelados" />
+              <KpiCard
+                etiqueta="Comidas repartidas"
+                valor={formatoNumero(resumen.comidasRepartidas)}
+                detalle={`de ${formatoNumero(resumen.comidasProgramadas)} programadas (${porcentaje}%) · ${formatoNumero(
+                  resumen.comidasParcialmenteRepartidas,
+                )} parcialmente repartidas`}
+              />
+              <KpiCard
+                etiqueta="Becados activos"
+                valor={formatoNumero(resumen.becadosActivos)}
+                detalle={`${resumen.comidasPorEspecialidad.length} especialidades con pedidos`}
+              />
+              <KpiCard
+                etiqueta="Sobre el límite"
+                valor={formatoNumero(resumen.becadosSobreLimite)}
+                detalle={`Máximo ${resumen.maxTurnosMes} turnos al mes`}
+                alerta={resumen.becadosSobreLimite > 0}
+                enlace={{ texto: 'Configurar', ruta: '/admin/configuracion' }}
+              />
+            </section>
 
-      {/* Calendario resumido + comidas por especialidad */}
-      <div className="panel-medio">
-        <section className="panel-tarjeta" aria-labelledby="titulo-calendario">
-          <div className="panel-tarjeta-cabecera">
-            <div>
-              <h2 id="titulo-calendario" className="panel-tarjeta-titulo">
-                Calendario de turnos y turno de 24 h
-              </h2>
-              <p className="panel-tarjeta-nota">
-                Días hábiles con turno normal; sábados, domingos y feriados exigen guardia de 24
-                horas
-              </p>
+            <div className="panel-medio">
+              <section className="panel-tarjeta" aria-labelledby="titulo-calendario">
+                <div className="panel-tarjeta-cabecera">
+                  <div>
+                    <h2 id="titulo-calendario" className="panel-tarjeta-titulo">
+                      Turnos del mes
+                    </h2>
+                    <p className="panel-tarjeta-nota">
+                      Cantidad de becados con turno por día. Sábados, domingos y feriados son guardias de 24 horas.
+                    </p>
+                  </div>
+                  <ul className="panel-leyenda">
+                    <li>
+                      <span className="panel-punto panel-punto--normal" /> Normal
+                    </li>
+                    <li>
+                      <span className="panel-punto panel-punto--24h" /> 24 h
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="mini-cal">
+                  {CABECERA_SEMANA.map((letra, i) => (
+                    <span key={`cabecera-${i}`} className={`mini-cal-cabecera ${i >= 5 ? 'mini-cal-cabecera--fin' : ''}`}>
+                      {letra}
+                    </span>
+                  ))}
+                  {Array.from({ length: huecosInicioMes(periodo.anio, periodo.mes) }, (_, i) => (
+                    <span key={`vacio-${i}`} />
+                  ))}
+                  {calendario.dias.map((d) => {
+                    const esHoy = d.fecha === claveHoy;
+                    const seleccionado = d.fecha === diaSeleccionado;
+                    const clases = [
+                      'mini-dia',
+                      d.tipo === '24h' && 'mini-dia--24h',
+                      seleccionado && 'mini-dia--seleccionado',
+                      esHoy && 'mini-dia--hoy',
+                    ]
+                      .filter(Boolean)
+                      .join(' ');
+                    return (
+                      <button
+                        key={d.fecha}
+                        type="button"
+                        className={clases}
+                        aria-pressed={seleccionado}
+                        aria-label={`Día ${d.dia}, ${d.tipo === '24h' ? 'guardia de 24 horas' : 'turno normal'}, ${d.turnos} con turno`}
+                        onClick={() => setDiaSeleccionado(seleccionado ? null : d.fecha)}
+                      >
+                        <span className="mini-dia-numero">{d.dia}</span>
+                        <span className="mini-dia-detalle">{esHoy ? 'HOY' : d.turnos > 0 ? d.turnos : ''}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {detalleDia && (
+                  <p className="panel-tarjeta-nota">
+                    Día {detalleDia.dia}: {detalleDia.tipo === '24h' ? 'guardia de 24 h' : 'turno normal'} ·{' '}
+                    {detalleDia.turnos === 1 ? '1 becado con turno' : `${detalleDia.turnos} becados con turno`}
+                  </p>
+                )}
+              </section>
+
+              <section className="panel-tarjeta" aria-labelledby="titulo-especialidades">
+                <div className="panel-tarjeta-cabecera">
+                  <h2 id="titulo-especialidades" className="panel-tarjeta-titulo">
+                    Comidas por especialidad
+                  </h2>
+                </div>
+                {resumen.comidasPorEspecialidad.length === 0 ? (
+                  <p className="panel-tarjeta-nota">No hay pedidos en este mes.</p>
+                ) : (
+                  <ul className="panel-especialidades">
+                    {resumen.comidasPorEspecialidad.map((esp, i) => (
+                      <li key={esp.especialidad} className="panel-especialidad">
+                        <div className="panel-especialidad-fila">
+                          <span>{esp.especialidad}</span>
+                          <strong>{formatoNumero(esp.cantidad)}</strong>
+                        </div>
+                        <div className="panel-barra" aria-hidden="true">
+                          <div
+                            className="panel-barra-relleno"
+                            style={{
+                              width: `${(esp.cantidad / maxEspecialidad) * 100}%`,
+                              background: COLORES_BARRAS[i % COLORES_BARRAS.length],
+                            }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
             </div>
-            <ul className="panel-leyenda">
-              <li>
-                <span className="panel-punto panel-punto--normal" /> Normal
-              </li>
-              <li>
-                <span className="panel-punto panel-punto--24h" /> 24 h
-              </li>
-            </ul>
-          </div>
 
-          <div className="mini-cal">
-            {DIAS_SEMANA.map((letra, i) => (
-              <span
-                key={`cabecera-${i}`}
-                className={`mini-cal-cabecera ${i >= 5 ? 'mini-cal-cabecera--fin' : ''}`}
-              >
-                {letra}
-              </span>
-            ))}
+            <section className="panel-tarjeta" aria-labelledby="titulo-contabilidad">
+              <div className="panel-tarjeta-cabecera">
+                <h2 id="titulo-contabilidad" className="panel-tarjeta-titulo">
+                  Contabilidad de comidas
+                </h2>
+                <p className="panel-tarjeta-nota panel-tarjeta-nota--derecha">Con el precio con que se agendó cada pedido</p>
+              </div>
+              <div className="panel-tabla-contenedor">
+                <table className="panel-tabla">
+                  <thead>
+                    <tr>
+                      <th scope="col">Comida</th>
+                      <th scope="col" className="panel-tabla-num">
+                        Cantidad
+                      </th>
+                      <th scope="col" className="panel-tabla-num">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resumen.contabilidad.map((fila) => (
+                      <tr key={fila.tipo}>
+                        <th scope="row">{NOMBRE_COMIDA[fila.tipo]}</th>
+                        <td className="panel-tabla-num">{formatoNumero(fila.cantidad)}</td>
+                        <td className="panel-tabla-num panel-tabla-total">{formatoPesos(fila.total)}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <th scope="row">Total</th>
+                      <td className="panel-tabla-num panel-tabla-total">{formatoNumero(totalContabilidad.cantidad)}</td>
+                      <td className="panel-tabla-num panel-tabla-total">{formatoPesos(totalContabilidad.total)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
-            {celdas.map((celda, i) => {
-              if (!celda) return <span key={`vacio-${i}`} />;
-
-              const { dia, tipo } = celda;
-              const esHoy = dia === DIA_HOY;
-              const seleccionado = dia === diaSeleccionado;
-              const clases = [
-                'mini-dia',
-                tipo === '24h' && 'mini-dia--24h',
-                seleccionado && 'mini-dia--seleccionado',
-                esHoy && 'mini-dia--hoy',
-              ]
-                .filter(Boolean)
-                .join(' ');
-
-              return (
-                <button
-                  key={dia}
-                  type="button"
-                  className={clases}
-                  aria-pressed={seleccionado}
-                  aria-label={`Día ${dia}, ${tipo === '24h' ? 'guardia de 24 horas' : 'turno normal'}`}
-                  onClick={() => setDiaSeleccionado(dia)}
-                >
-                  <span className="mini-dia-numero">{dia}</span>
-                  <span className="mini-dia-detalle">
-                    {esHoy ? 'HOY' : tipo === '24h' ? '24 h' : (TURNOS_POR_DIA[dia] ?? '')}
-                  </span>
-                  {DIAS_CON_ALERTA.includes(dia) && (
-                    <span
-                      className="mini-dia-alerta"
-                      role="img"
-                      aria-label="Hay becados sobre el límite de turnos"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="panel-tarjeta" aria-labelledby="titulo-especialidades">
-          <div className="panel-tarjeta-cabecera">
-            <h2 id="titulo-especialidades" className="panel-tarjeta-titulo">
-              Comidas por especialidad
-            </h2>
-            <p className="panel-tarjeta-nota panel-tarjeta-nota--derecha">de 15 · 12 activas</p>
-          </div>
-
-          <ul className="panel-especialidades">
-            {ESPECIALIDADES.map((esp) => (
-              <li key={esp.nombre} className="panel-especialidad">
-                <div className="panel-especialidad-fila">
-                  <span>{esp.nombre}</span>
-                  <strong>{esp.comidas}</strong>
-                </div>
-                <div className="panel-barra" aria-hidden="true">
-                  <div
-                    className="panel-barra-relleno"
-                    style={{
-                      width: `${(esp.comidas / maxComidas) * 100}%`,
-                      background: esp.color,
-                    }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-
-      {/* Contabilidad del mes */}
-      <section className="panel-tarjeta" aria-labelledby="titulo-contabilidad">
-        <div className="panel-tarjeta-cabecera">
-          <h2 id="titulo-contabilidad" className="panel-tarjeta-titulo">
-            Contabilidad de comidas del mes
-          </h2>
-          <p className="panel-tarjeta-nota panel-tarjeta-nota--derecha">
-            Costo por unidad aplicado a cada rubro
-          </p>
-        </div>
-
-        <div className="panel-tabla-contenedor">
-          <table className="panel-tabla">
-            <thead>
-              <tr>
-                <th scope="col">Rubro</th>
-                <th scope="col" className="panel-tabla-num">
-                  Cantidad
-                </th>
-                <th scope="col" className="panel-tabla-num">
-                  Costo unit.
-                </th>
-                <th scope="col" className="panel-tabla-num">
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {CONTABILIDAD.map((fila) => (
-                <tr key={fila.rubro}>
-                  <th scope="row">{fila.rubro}</th>
-                  <td className="panel-tabla-num">{fila.cantidad}</td>
-                  <td className="panel-tabla-num panel-tabla-suave">
-                    {formatearPesos(fila.costoUnitario)}
-                  </td>
-                  <td className="panel-tabla-num panel-tabla-total">
-                    {formatearPesos(fila.cantidad * fila.costoUnitario)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+            <section className="panel-tarjeta" aria-labelledby="titulo-entregas">
+              <div className="panel-tarjeta-cabecera">
+                <h2 id="titulo-entregas" className="panel-tarjeta-titulo">
+                  Entregas confirmadas
+                </h2>
+                <p className="panel-tarjeta-nota panel-tarjeta-nota--derecha">
+                  Proveedor: marcadas como entregadas · Residente: confirmadas en su cuenta · Ambos: con las dos
+                </p>
+              </div>
+              <div className="panel-tabla-contenedor">
+                <table className="panel-tabla">
+                  <thead>
+                    <tr>
+                      <th scope="col">Comida</th>
+                      <th scope="col" className="panel-tabla-num">
+                        Proveedor
+                      </th>
+                      <th scope="col" className="panel-tabla-num">
+                        Residente
+                      </th>
+                      <th scope="col" className="panel-tabla-num">
+                        Ambos
+                      </th>
+                      <th scope="col" className="panel-tabla-num">
+                        Monto (ambos)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resumen.conciliacion.porTipo.map((fila) => (
+                      <tr key={fila.tipoComida}>
+                        <th scope="row">{NOMBRE_COMIDA[fila.tipoComida]}</th>
+                        <td className="panel-tabla-num">{formatoNumero(fila.entregadasProveedor)}</td>
+                        <td className="panel-tabla-num">{formatoNumero(fila.confirmadasResidente)}</td>
+                        <td className="panel-tabla-num">{formatoNumero(fila.conciliadas)}</td>
+                        <td className="panel-tabla-num panel-tabla-total">{formatoPesos(fila.montoConciliado)}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <th scope="row">Total</th>
+                      <td className="panel-tabla-num panel-tabla-total">
+                        {formatoNumero(resumen.conciliacion.total.entregadasProveedor)}
+                      </td>
+                      <td className="panel-tabla-num panel-tabla-total">
+                        {formatoNumero(resumen.conciliacion.total.confirmadasResidente)}
+                      </td>
+                      <td className="panel-tabla-num panel-tabla-total">
+                        {formatoNumero(resumen.conciliacion.total.conciliadas)}
+                      </td>
+                      <td className="panel-tabla-num panel-tabla-total">
+                        {formatoPesos(resumen.conciliacion.total.montoConciliado)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        )}
+      </EstadoCarga>
     </div>
   );
 }

@@ -148,7 +148,7 @@ function Editor({ tipo, id }: { tipo: TipoUsuario; id: number }) {
     <div className="usuarios-page">
       <header>
         <Migas tramos={[{ texto: config.titulo, a: `/admin/usuarios/${tipo}` }, { texto: usuario.nombre ?? 'Editar' }]} />
-        <h1 className="usuarios-titulo">Editar {config.singular}</h1>
+        <h1 className="usuarios-titulo titulo-visible">Editar {config.singular}</h1>
         <p className="usuarios-subtitulo">
           RUT {formatoRut(usuario.rut)} · {NOMBRE_ROL[usuario.rol]}
           {usuario.sinClave && <span className="etiqueta etiqueta--alerta">Sin contraseña</span>}

@@ -440,8 +440,8 @@ a.boton-secundario {
 }
 
 .selector-opcion--activa {
-  background: var(--nt-celeste-fondo);
-  color: var(--nt-celeste);
+  background: var(--ucn-orange);
+  color: #fff;
 }
 
 .selector-opcion:focus-visible {

@@ -1,0 +1,73 @@
+# =====================================================================
+#  VARIABLES PARA RENDER (TEMPORAL: BORRAR DESPUÉS DE USARLO)
+#  No subir a git: cuando completes los valores tendrá claves reales.
+# =====================================================================
+#
+# Cómo usarlo:
+#   1. Reemplaza cada <...> por el valor real.
+#   2. En Render, en el servicio de la API → Environment → "Add from .env",
+#      pega el bloque de la API (desde NODE_ENV hasta CORREO_PROVEEDOR).
+#      También se pueden agregar una por una.
+#   3. Borra este archivo.
+#
+# =====================================================================
+#  API (Web Service: resibreak-api)
+# =====================================================================
+
+NODE_ENV=production
+
+# Datos INTERNOS de la base de Render (Postgres → Connections).
+# El Hostname interno es tipo dpg-xxxxxxxxxx-a, sin ".render.com".
+DB_HOST=<hostname interno>
+DB_PORT=5432
+DB_NAME=<database>
+DB_USER=<username>
+DB_PASSWORD=<password>
+
+DB_SYNC=false
+DB_MIGRAR=true
+
+# Genéralo con:
+#   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+JWT_SECRET=<clave aleatoria de 32+ caracteres>
+
+# Primer administrador. RUT sin puntos y con guion (ej. 12345678-5).
+# Contraseña de 12 caracteres o más.
+ADMIN_RUT=<tu RUT>
+ADMIN_PASSWORD=<contraseña de 12+ caracteres>
+
+TZ=America/Santiago
+TRUST_PROXY=1
+
+# Provisorio. Cuando exista la web, cámbialo por su URL real
+# (https://<tu-web>.onrender.com, sin barra final). Si creas también
+# la app web de Expo, agrega su URL separada por coma.
+CORS_ORIGINS=https://ejemplo.onrender.com
+
+CORREO_PROVEEDOR=consola
+
+# Solo si el build falla por la versión de Node (quita el # de adelante):
+# NODE_VERSION=22
+
+
+# =====================================================================
+#  WEB (Static Site: resibreak-web)
+# =====================================================================
+
+VITE_API_URL=https://<tu-api>.onrender.com/api
+
+
+# =====================================================================
+#  APP WEB PARA IPHONE (Static Site opcional: resibreak-app-web)
+# =====================================================================
+
+EXPO_PUBLIC_API_URL=https://<tu-api>.onrender.com/api
+
+
+# =====================================================================
+#  CELULAR CON EXPO GO (en apps/mobile/.env, no en Render)
+# =====================================================================
+#
+# EXPO_PUBLIC_API_URL=https://<tu-api>.onrender.com/api
+#
+# Para volver a trabajar en local: EXPO_PUBLIC_API_URL=http://192.168.1.188:3000/api

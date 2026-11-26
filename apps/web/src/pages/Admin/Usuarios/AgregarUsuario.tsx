@@ -24,7 +24,7 @@ function AgregarUsuario() {
     <div className="usuarios-page">
       <header>
         <Migas tramos={[{ texto: config.titulo, a: `/admin/usuarios/${tipo}` }, { texto: 'Agregar' }]} />
-        <h1 className="usuarios-titulo">Agregar {config.singular}</h1>
+        <h1 className="usuarios-titulo titulo-visible">Agregar {config.singular}</h1>
       </header>
 
       {tipo === 'residentes' ? (

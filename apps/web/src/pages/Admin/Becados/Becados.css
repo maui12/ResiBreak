@@ -29,6 +29,10 @@
   color: var(--nt-texto-suave);
 }
 
+.becados-subtitulo a {
+  color: var(--nt-celeste);
+}
+
 .becados-leyenda {
   display: flex;
   gap: 1rem;

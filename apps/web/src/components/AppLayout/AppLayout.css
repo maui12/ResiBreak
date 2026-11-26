@@ -1,0 +1,431 @@
+/* Estructura común (misma apariencia que la app móvil: ScreenLayout, AppHeader y Sidebar). */
+
+.app {
+  display: flex;
+  min-height: 100vh;
+  background: var(--nt-fondo);
+  color: var(--nt-texto);
+  font-family: var(--font-family);
+}
+
+/* ---------- Menú lateral (blanco, como el del celular) ---------- */
+.app-menu {
+  position: sticky;
+  top: 0;
+  display: flex;
+  width: 300px;
+  height: 100vh;
+  flex-shrink: 0;
+  flex-direction: column;
+  margin-left: -300px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+  transition: margin-left 0.24s ease;
+  z-index: 30;
+}
+
+.app--menu-abierto .app-menu {
+  margin-left: 0;
+}
+
+.app-menu-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 24px 16px;
+}
+
+.app-menu-cabecera div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-menu-cabecera strong {
+  font-size: 15px;
+}
+
+.app-menu-cabecera div span {
+  color: var(--ucn-blue);
+  font-size: 12px;
+}
+
+.app-menu-logo {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--ucn-orange);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.app-menu-cerrar {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-menu-separador {
+  height: 1px;
+  margin: 0 16px;
+  background: var(--color-border);
+}
+
+.app-menu-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0 12px 24px;
+}
+
+.app-menu-etiqueta {
+  margin: 24px 10px 12px;
+  color: var(--ucn-blue);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+}
+
+.app-opcion {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.app-opcion:hover {
+  background: var(--color-background);
+}
+
+.app-opcion:focus-visible {
+  outline: 2px solid var(--ucn-orange);
+  outline-offset: 2px;
+}
+
+.app-opcion-icono {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--ucn-blue);
+  font-size: 20px;
+}
+
+.app-opcion-textos {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-opcion-titulo {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.app-opcion-descripcion {
+  color: var(--ucn-blue);
+  font-size: 11px;
+}
+
+.app-opcion-indicador {
+  width: 4px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
+.app-opcion--activa {
+  background: var(--ucn-orange-soft);
+}
+
+.app-opcion--activa:hover {
+  background: var(--ucn-orange-soft);
+}
+
+.app-opcion--activa .app-opcion-icono {
+  background: var(--ucn-orange);
+  color: #fff;
+}
+
+.app-opcion--activa .app-opcion-titulo {
+  color: var(--ucn-orange);
+  font-weight: 700;
+}
+
+.app-opcion--activa .app-opcion-indicador {
+  background: var(--ucn-orange);
+}
+
+.app-menu-pie {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: auto 20px 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--color-border);
+  color: var(--ucn-blue);
+  font-size: 12px;
+}
+
+.app-menu-pie > span:nth-child(2) {
+  flex: 1;
+}
+
+.app-punto-estado {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nt-verde);
+}
+
+.app-salir {
+  padding: 8px 12px;
+  border: 1px solid var(--ucn-orange);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ucn-orange);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.app-salir:hover {
+  background: var(--ucn-orange-soft);
+}
+
+.app-velo {
+  display: none;
+}
+
+/* ---------- Encabezado blanco ---------- */
+.app-cuerpo {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  z-index: 20;
+}
+
+.app-boton-header {
+  position: relative;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.app-boton-header:hover {
+  background: var(--ucn-orange-soft);
+}
+
+.app-boton-header:focus-visible {
+  outline: 2px solid var(--ucn-orange);
+  outline-offset: 2px;
+}
+
+.app-icono-menu {
+  color: var(--ucn-orange);
+  font-size: 23px;
+}
+
+.app-campana {
+  font-size: 19px;
+}
+
+.app-globo {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--nt-rojo);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+}
+
+.app-globo--menu {
+  position: static;
+}
+
+.app-header-textos {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-header-textos h1 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 19px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-header-textos p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--ucn-blue);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-logos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-logo-famed {
+  width: 52px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.app-logo-ucn {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+/* ---------- Contenido (azul institucional) ---------- */
+.app-contenido {
+  flex: 1;
+  min-width: 0;
+  background: var(--nt-fondo);
+  color: var(--nt-texto);
+}
+
+/* El encabezado blanco ya muestra el título de la pantalla: no se repite dentro de la página
+   (salvo los títulos propios de subpantallas, marcados con .titulo-visible). */
+.app-contenido h1:not(.titulo-visible) {
+  display: none;
+}
+
+/* ---------- Aviso de notificación nueva ---------- */
+.app-aviso {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  max-width: min(24rem, calc(100vw - 40px));
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--nt-rojo);
+  border-radius: var(--radius-md);
+  background: #0b2a47;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: var(--nt-texto);
+  z-index: 50;
+}
+
+.app-aviso p {
+  margin: 0;
+  color: var(--nt-texto-suave);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.app-aviso-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* ---------- Pantallas angostas: el menú se superpone, como en el celular ---------- */
+@media (max-width: 899px) {
+  .app-menu {
+    position: fixed;
+    left: 0;
+    width: min(320px, 86vw);
+    margin-left: 0;
+    transform: translateX(-100%);
+    transition: transform 0.24s ease;
+  }
+
+  .app--menu-abierto .app-menu {
+    transform: translateX(0);
+  }
+
+  .app-velo {
+    position: fixed;
+    inset: 0;
+    display: block;
+    background: rgba(20, 20, 20, 0.42);
+    z-index: 25;
+  }
+}
+
+@media (min-width: 900px) {
+  .app-menu-cerrar {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-header {
+    padding: 8px 12px;
+  }
+
+  .app-logo-famed {
+    width: 40px;
+    height: 38px;
+  }
+
+  .app-logo-ucn {
+    width: 34px;
+    height: 34px;
+  }
+}

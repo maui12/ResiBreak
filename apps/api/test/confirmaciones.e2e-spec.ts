@@ -172,6 +172,19 @@ describe('Confirmaciones de entrega (e2e)', () => {
       expect(res.body).toMatchObject({ comidasRepartidas: 2, comidasParcialmenteRepartidas: 2 });
     });
 
+    it('el informe por hospital trae el detalle por comida y las confirmaciones', async () => {
+      const res = await http().get('/api/informes/hospitales').query({ desde: hoy, hasta: hoy }).auth(admin, { type: 'bearer' }).expect(200);
+      const serena = res.body.find((h: { hospital: string }) => h.hospital === 'La Serena');
+      // Ana hoy: desayuno (ambos), almuerzo (solo proveedor) y cena (solo residente).
+      expect(serena).toMatchObject({ comidas: 3, entregadas: 2, recibidas: 2, conciliadas: 1, montoConciliado: 4200 });
+      expect(serena.porTipo.map((t: { tipoComida: string }) => t.tipoComida)).toEqual(['desayuno', 'almuerzo', 'once', 'cena']);
+      expect(serena.porTipo.find((t: { tipoComida: string }) => t.tipoComida === 'cena')).toMatchObject({
+        programadas: 1, entregadasProveedor: 0, confirmadasResidente: 1, conciliadas: 0, montoProgramado: 6200,
+      });
+      const coquimbo = res.body.find((h: { hospital: string }) => h.hospital === 'Coquimbo');
+      expect(coquimbo).toMatchObject({ comidas: 1, conciliadas: 1, montoConciliado: 6000 });
+    });
+
     it('la lista de reparto indica qué parte confirmó: programado, parcial o repartido', async () => {
       const [anio, mes] = hoy.split('-').map(Number);
       const res = await http().get('/api/pedidos').query({ anio, mes }).auth(admin, { type: 'bearer' }).expect(200);

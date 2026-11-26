@@ -370,3 +370,15 @@
     padding: 0.3rem 0.4rem;
   }
 }
+.panel-kpi-enlace {
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  color: var(--nt-celeste);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.panel-kpi-enlace:hover {
+  text-decoration: underline;
+}

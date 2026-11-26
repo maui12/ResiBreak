@@ -36,3 +36,9 @@
   /* Sombras */
   --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
+
+body {
+  margin: 0;
+  background: #003057;
+  font-family: var(--font-family);
+}

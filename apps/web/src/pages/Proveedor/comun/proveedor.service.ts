@@ -2,11 +2,12 @@
  * Endpoints del proveedor (apps/api/src/proveedor/proveedor.controller.ts):
  *
  *   GET   /proveedor/resumen                          hoy y los 7 días siguientes, por tipo de comida
+ *   GET   /proveedor/pendientes?dias=7                lo que falta entregar: nombre, comida y hospital
  *   GET   /proveedor/pedidos?fecha&tipoComida         detalle de un día (por defecto, hoy)
+ *   GET   /proveedor/totales?desde&hasta              confirmadas por proveedor/residente/ambos, por tipo
  *   GET   /proveedor/historial?desde&hasta&tipoComida&estado&pagina&limite
  *   PATCH /proveedor/pedidos/:id/entregar             marca entregado un pedido pendiente de hoy
  */
-import type { OpcionSidebar } from '../../../components/Sidebar/Sidebar';
 import { api, consulta } from '../../../utils/api';
 
 export const TIPOS_COMIDA = ['desayuno', 'almuerzo', 'once', 'cena'] as const;
@@ -20,23 +21,47 @@ export const NOMBRE_COMIDA: Record<TipoComida, string> = {
   cena: 'Cena',
 };
 
+export const PLURAL_COMIDA: Record<TipoComida, string> = {
+  desayuno: 'Desayunos',
+  almuerzo: 'Almuerzos',
+  once: 'Onces',
+  cena: 'Cenas',
+};
+
 export const NOMBRE_ESTADO: Record<EstadoPedido, string> = {
   pendiente: 'Pendiente',
   entregado: 'Entregado',
   cancelado: 'Cancelado',
 };
 
-export const OPCIONES_PROVEEDOR: OpcionSidebar[] = [
-  { label: 'Pedidos de hoy', ruta: '/proveedor/pedidos-de-hoy' },
-  { label: 'Historial de pedidos', ruta: '/proveedor/historial' },
-];
-
 export interface PedidoProveedor {
   id: number;
   fecha: string; // AAAA-MM-DD
   tipoComida: TipoComida;
   estado: EstadoPedido;
+  /** Las dos confirmaciones de entrega: la del proveedor y la del residente. */
+  confirmaciones: { proveedor: boolean; proveedorEn: string | null; residente: boolean; residenteEn: string | null };
   becado: { nombre: string; especialidad: string; hospital: string };
+}
+
+export interface TotalComida {
+  tipoComida: TipoComida;
+  programadas: number;
+  entregadasProveedor: number;
+  confirmadasResidente: number;
+  conciliadas: number;
+  soloProveedor: number;
+  soloResidente: number;
+  montoProgramado: number;
+  montoEntregadoProveedor: number;
+  montoConciliado: number;
+}
+
+export interface Conciliacion {
+  desde: string;
+  hasta: string;
+  porTipo: TotalComida[];
+  total: Omit<TotalComida, 'tipoComida'>;
 }
 
 export interface ResumenDia {
@@ -72,6 +97,16 @@ export function obtenerPedidosDelDia(fecha?: string, tipoComida?: TipoComida) {
   return api<{ fecha: string; items: PedidoProveedor[] }>(`/proveedor/pedidos${consulta({ fecha, tipoComida })}`);
 }
 
+export function obtenerPendientes(dias = 7) {
+  return api<{ hoy: string; hasta: string; total: number; items: PedidoProveedor[] }>(
+    `/proveedor/pendientes${consulta({ dias })}`,
+  );
+}
+
+export function obtenerTotales(desde: string, hasta: string) {
+  return api<Conciliacion>(`/proveedor/totales${consulta({ desde, hasta })}`);
+}
+
 export function obtenerHistorial(filtros: {
   desde?: string;
   hasta?: string;
@@ -81,6 +116,11 @@ export function obtenerHistorial(filtros: {
   limite?: number;
 }) {
   return api<PaginaHistorial>(`/proveedor/historial${consulta(filtros)}`);
+}
+
+/** Pregunta antes de confirmar una entrega. */
+export function preguntarConfirmacion(p: PedidoProveedor): boolean {
+  return window.confirm(`Confirmar entrega\n\n${NOMBRE_COMIDA[p.tipoComida]} de ${p.becado.nombre}, Hospital ${p.becado.hospital}.`);
 }
 
 export function marcarEntregado(id: number) {

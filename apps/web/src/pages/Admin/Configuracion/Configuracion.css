@@ -108,14 +108,14 @@
 }
 
 .config-boton--principal {
-  background: var(--nt-celeste);
-  border-color: var(--nt-celeste);
-  color: #06111f;
+  background: var(--ucn-orange);
+  border-color: var(--ucn-orange);
+  color: #fff;
   font-weight: 600;
 }
 
 .config-boton--principal:hover {
-  background: #7dd3fc;
+  background: #c07d40;
 }
 
 .config-mensaje {
@@ -129,6 +129,179 @@
 
 .config-mensaje--ok {
   color: var(--nt-verde);
+}
+
+a.config-boton {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.config-boton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.config-boton--alineado {
+  align-self: flex-end;
+}
+
+.config-descripcion {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--nt-texto-suave);
+  font-size: 0.85rem;
+}
+
+.config-campo-error {
+  color: #fca5a5 !important;
+}
+
+.config-lista {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.config-tarjeta--columna {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.config-tarjeta--columna > small {
+  color: var(--nt-texto-suave);
+  font-size: 0.8rem;
+}
+
+.config-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.config-campo--ancho {
+  flex: 1 1 16rem;
+}
+
+.config-etiqueta {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.config-valor {
+  padding: 0.55rem 0;
+}
+
+/* ---------- Chips (casillas con aspecto de botón) ---------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chip:focus-within {
+  outline: 2px solid var(--nt-celeste);
+  outline-offset: 2px;
+}
+
+.chip--activo {
+  border-color: var(--ucn-orange);
+  background: var(--ucn-orange);
+  color: #fff;
+}
+
+.chip--rojo.chip--activo {
+  border-color: var(--nt-rojo);
+  background: rgba(228, 29, 59, 0.15);
+  color: #fca5a5;
+}
+
+fieldset:disabled .chip {
+  cursor: default;
+  opacity: 0.75;
+}
+
+/* ---------- Tipos de turno ---------- */
+.turnos {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.turnos-encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.turnos-encabezado .config-subtitulo {
+  flex: 1 1 24rem;
+  margin: 0;
+}
+
+.turnos-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  gap: 1rem;
+}
+
+.turno {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.turno--vencido {
+  opacity: 0.7;
+}
+
+.turno-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.turno-cabecera h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.turno-horario {
+  margin: 0;
+  font-weight: 600;
+}
+
+.turno .resumen-datos {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.turno-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 @media (max-width: 600px) {

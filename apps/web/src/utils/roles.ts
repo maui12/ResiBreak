@@ -5,13 +5,14 @@ export const ROLES_ADMIN: Rol[] = ['admin', 'consulta'];
 /** Pantallas que modifican usuarios: solo el admin (consulta no las ve). */
 export const SOLO_ADMIN: Rol[] = ['admin'];
 export const ROLES_PROVEEDOR: Rol[] = ['proveedor', 'admin'];
+export const ROLES_RESIDENTE: Rol[] = ['residente'];
 
 /** Pantalla a la que va cada rol después de iniciar sesión. */
 export const RUTA_INICIAL: Partial<Record<Rol, string>> = {
   admin: '/admin/panel',
   consulta: '/admin/panel',
-  proveedor: '/proveedor/pedidos-de-hoy',
-  // El residente usa la app móvil; en la web no tiene vista.
+  proveedor: '/proveedor/proximos-dias',
+  residente: '/residente/inicio',
 };
 
 export function rutaInicial(rol: string | null | undefined): string | undefined {

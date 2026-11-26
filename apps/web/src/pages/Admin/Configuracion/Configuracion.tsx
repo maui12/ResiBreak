@@ -1,201 +1,207 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import EstadoCarga from '../../../components/EstadoCarga/EstadoCarga';
+import {
+  actualizarConfiguracion,
+  mensajeDeError,
+  obtenerConfiguracion,
+  type ClaveConfiguracion,
+  type Configuracion as DatosConfiguracion,
+} from '../../../services/admin.service';
+import { formatoFechaHora } from '../../../utils/fechas';
+import { obtenerRol } from '../../../utils/sesion';
+import { useCarga } from '../../../utils/useCarga';
+import { CAMPOS, SECCIONES, interpretarTexto, mostrarValor, type CampoConfiguracion } from './catalogo';
+import TiposTurno from './TiposTurno';
 import './Configuracion.css';
 
-interface ConfiguracionForm {
-  maxTurnosMes: number;
-  anticipacionMinimaDias: number;
-  hospitalActivo: string;
-  costoDesayuno: number;
-  costoAlmuerzo: number;
-  costoOnce: number;
-  costoCena: number;
-}
+type Textos = Record<ClaveConfiguracion, string>;
 
-// Todos los campos del formulario que son números
-type CampoNumerico = Exclude<keyof ConfiguracionForm, 'hospitalActivo'>
+const textosDe = (c: DatosConfiguracion) =>
+  Object.fromEntries(CAMPOS.map((campo) => [campo.clave, String(c[campo.clave])])) as Textos;
 
-const HOSPITALES = ['La Serena', 'Coquimbo', 'Ovalle'];
-
-// Valores de ejemplo (los del mockup). Más adelante vendrán del backend: GET /configuracion
-const CONFIGURACION_INICIAL: ConfiguracionForm = {
-  maxTurnosMes: 6,
-  anticipacionMinimaDias: 1,
-  hospitalActivo: 'Ovalle',
-  costoDesayuno: 4200,
-  costoAlmuerzo: 6500,
-  costoOnce: 3800,
-  costoCena: 6200,
-};
+const describirCambio = (campo: CampoConfiguracion, antes: number, despues: number) =>
+  `${campo.etiqueta}: ${mostrarValor(campo, antes)} → ${mostrarValor(campo, despues)}`;
 
 function Configuracion() {
-  const [form, setForm] = useState<ConfiguracionForm>(CONFIGURACION_INICIAL);
-  const [error, setError] = useState('');
-  const [guardado, setGuardado] = useState(false);
-
-  const actualizar = <K extends keyof ConfiguracionForm>(
-    campo: K,
-    valor: ConfiguracionForm[K],
-  ) => {
-    setForm((anterior) => ({ ...anterior, [campo]: valor }));
-    setGuardado(false);
-    setError('');
-  };
-
-  const actualizarNumero = (campo: CampoNumerico) => (e: ChangeEvent<HTMLInputElement>) =>
-    actualizar(campo, Number(e.target.value));
-
-  const manejarGuardar = (e: FormEvent) => {
-    e.preventDefault();
-
-    // Validación rápida para avisar al usuario.
-    // La validación que manda es la del backend.
-    if (form.maxTurnosMes < 1) {
-      setError('El máximo de turnos por mes debe ser al menos 1.');
-      return;
-    }
-    if (form.anticipacionMinimaDias < 0 || form.anticipacionMinimaDias > 30) {
-      setError('La anticipación mínima debe estar entre 0 y 30 días.');
-      return;
-    }
-    if ([form.costoDesayuno, form.costoAlmuerzo, form.costoOnce, form.costoCena].some((c) => c < 0)) {
-      setError('Los costos no pueden ser negativos.');
-      return;
-    }
-
-    // TODO: enviar al backend con PUT /configuracion
-    console.log('Configuración a guardar:', form);
-    setGuardado(true);
-  };
-
-  const manejarDescartar = () => {
-    setForm(CONFIGURACION_INICIAL);
-    setError('');
-    setGuardado(false);
-  };
+  // Solo el administrador puede cambiar la configuración; el rol "consulta" la ve en modo lectura.
+  const soloLectura = obtenerRol() !== 'admin';
+  const [parametros, setParametros] = useSearchParams();
+  const pestana = parametros.get('pestana') === 'turnos' ? 'turnos' : 'general';
 
   return (
     <div className="config">
       <header>
         <h1 className="config-titulo">Configuración</h1>
-        <p className="config-subtitulo">
-          Reglas de turnos y costos que usan el Panel y el Calendario.
-        </p>
+        <p className="config-subtitulo">Reglas, costos y tipos de turno que usan todo el sistema.</p>
       </header>
 
-      <form className="config-formulario" onSubmit={manejarGuardar}>
-        <fieldset className="config-tarjeta">
-          <legend className="config-leyenda">Reglas de turnos</legend>
-
-          <div className="config-campo">
-            <label htmlFor="maxTurnosMes">Máximo de turnos por mes</label>
-            <input
-              id="maxTurnosMes"
-              type="number"
-              min={1}
-              value={form.maxTurnosMes}
-              onChange={actualizarNumero('maxTurnosMes')}
-            />
-            <small>Los becados que superen este número aparecen como "sobre el límite".</small>
-          </div>
-
-          <div className="config-campo">
-            <label htmlFor="anticipacion">Anticipación mínima (días)</label>
-            <input
-              id="anticipacion"
-              type="number"
-              min={0}
-              max={30}
-              value={form.anticipacionMinimaDias}
-              onChange={actualizarNumero('anticipacionMinimaDias')}
-            />
-            <small>Con 1, el becado puede agendar, cambiar o cancelar hasta las 23:59 del día anterior (hora de Chile).</small>
-          </div>
-
-          <div className="config-campo">
-            <label htmlFor="hospital">Hospital activo</label>
-            <select
-              id="hospital"
-              value={form.hospitalActivo}
-              onChange={(e) => actualizar('hospitalActivo', e.target.value)}
-            >
-              {HOSPITALES.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </div>
-        </fieldset>
-
-        <fieldset className="config-tarjeta">
-          <legend className="config-leyenda">Costo por unidad (CLP)</legend>
-
-          <div className="config-campo">
-            <label htmlFor="costoDesayuno">Desayuno</label>
-            <input
-              id="costoDesayuno"
-              type="number"
-              min={0}
-              value={form.costoDesayuno}
-              onChange={actualizarNumero('costoDesayuno')}
-            />
-          </div>
-
-          <div className="config-campo">
-            <label htmlFor="costoAlmuerzo">Almuerzo</label>
-            <input
-              id="costoAlmuerzo"
-              type="number"
-              min={0}
-              value={form.costoAlmuerzo}
-              onChange={actualizarNumero('costoAlmuerzo')}
-            />
-          </div>
-
-          <div className="config-campo">
-            <label htmlFor="costoOnce">Once</label>
-            <input
-              id="costoOnce"
-              type="number"
-              min={0}
-              value={form.costoOnce}
-              onChange={actualizarNumero('costoOnce')}
-            />
-          </div>
-
-          <div className="config-campo">
-            <label htmlFor="costoCena">Cena</label>
-            <input
-              id="costoCena"
-              type="number"
-              min={0}
-              value={form.costoCena}
-              onChange={actualizarNumero('costoCena')}
-            />
-          </div>
-        </fieldset>
-
-        <div className="config-acciones">
-          <button type="submit" className="config-boton config-boton--principal">
-            Guardar cambios
+      <div className="selector" role="tablist" aria-label="Secciones de configuración">
+        {(
+          [
+            ['general', 'Reglas y costos'],
+            ['turnos', 'Tipos de turno'],
+          ] as const
+        ).map(([valor, texto]) => (
+          <button
+            key={valor}
+            type="button"
+            role="tab"
+            aria-selected={pestana === valor}
+            className={`selector-opcion ${pestana === valor ? 'selector-opcion--activa' : ''}`}
+            onClick={() => setParametros(valor === 'turnos' ? { pestana: 'turnos' } : {}, { replace: true })}
+          >
+            {texto}
           </button>
-          <button type="button" className="config-boton" onClick={manejarDescartar}>
-            Descartar cambios
-          </button>
+        ))}
+      </div>
 
-          {error && (
-            <p className="config-mensaje config-mensaje--error" role="alert">
-              {error}
-            </p>
-          )}
-          {guardado && (
-            <p className="config-mensaje config-mensaje--ok" role="status">
-              Cambios guardados.
-            </p>
-          )}
-        </div>
-      </form>
+      {pestana === 'turnos' ? <TiposTurno soloLectura={soloLectura} /> : <ReglasYCostos soloLectura={soloLectura} />}
     </div>
+  );
+}
+
+function ReglasYCostos({ soloLectura }: { soloLectura: boolean }) {
+  const { datos: guardada, error, cargando, recargar, actualizar } = useCarga('configuracion', obtenerConfiguracion);
+  const [textosEditados, setTextosEditados] = useState<Partial<Textos>>({});
+  const [guardando, setGuardando] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+  const [cambiosGuardados, setCambiosGuardados] = useState<string[] | null>(null);
+
+  const textos: Textos | null = guardada ? { ...textosDe(guardada), ...textosEditados } : null;
+  const evaluados =
+    guardada && textos
+      ? CAMPOS.map((campo) => ({
+          campo,
+          texto: textos[campo.clave],
+          guardado: guardada[campo.clave],
+          ...interpretarTexto(campo, textos[campo.clave]),
+        }))
+      : [];
+  const porClave = new Map(evaluados.map((e) => [e.campo.clave, e]));
+  const cambios = evaluados.filter((e): e is typeof e & { valor: number } => e.valor !== null && e.valor !== e.guardado);
+  const hayErrores = evaluados.some((e) => e.error !== null);
+  const puedeGuardar = !soloLectura && cambios.length > 0 && !hayErrores && !guardando;
+
+  const cambiarTexto = (clave: ClaveConfiguracion, texto: string) => {
+    setTextosEditados((t) => ({ ...t, [clave]: texto }));
+    setCambiosGuardados(null);
+    setErrorGuardar(null);
+  };
+
+  async function guardar(e: FormEvent) {
+    e.preventDefault();
+    if (!puedeGuardar) return;
+    const resumen = cambios.map((c) => describirCambio(c.campo, c.guardado, c.valor));
+    setGuardando(true);
+    setErrorGuardar(null);
+    try {
+      const nueva = await actualizarConfiguracion(Object.fromEntries(cambios.map((c) => [c.campo.clave, c.valor])));
+      actualizar(() => nueva);
+      setTextosEditados({});
+      setCambiosGuardados(resumen);
+    } catch (err) {
+      setErrorGuardar(mensajeDeError(err));
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <EstadoCarga cargando={cargando} error={error} onReintentar={recargar}>
+      {guardada && (
+        <form className="config-formulario" onSubmit={guardar}>
+          <p className="config-subtitulo">
+            Última modificación: {formatoFechaHora(new Date(guardada.actualizadoEn))}
+          </p>
+
+          {soloLectura && (
+            <p className="aviso-info">Tu usuario puede ver la configuración, pero solo un administrador puede cambiarla.</p>
+          )}
+
+          {cambiosGuardados && (
+            <div className="aviso-ok" role="status">
+              <strong>Cambios guardados.</strong> Ya rigen para todo el sistema.
+              <ul className="config-lista">
+                {cambiosGuardados.map((linea) => (
+                  <li key={linea}>{linea}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {SECCIONES.map((seccion) => (
+            <fieldset key={seccion.titulo} className="config-tarjeta">
+              <legend className="config-leyenda">{seccion.titulo}</legend>
+              <p className="config-descripcion">{seccion.descripcion}</p>
+              {seccion.campos.map((campo) => {
+                const estado = porClave.get(campo.clave);
+                if (!estado) return null;
+                const cambiado = estado.valor !== null && estado.valor !== estado.guardado;
+                return (
+                  <div key={campo.clave} className="config-campo">
+                    <label htmlFor={campo.clave}>
+                      {campo.etiqueta}
+                      {campo.unidad ? ` (${campo.unidad})` : campo.tipo === 'moneda' ? ' (CLP)' : ''}
+                    </label>
+                    <input
+                      id={campo.clave}
+                      inputMode="numeric"
+                      value={estado.texto}
+                      disabled={soloLectura}
+                      aria-invalid={estado.error !== null}
+                      aria-describedby={`${campo.clave}-ayuda`}
+                      onChange={(e) => cambiarTexto(campo.clave, e.target.value)}
+                    />
+                    <small id={`${campo.clave}-ayuda`}>
+                      {estado.error ? (
+                        <span className="config-campo-error">{estado.error}</span>
+                      ) : cambiado ? (
+                        `Antes: ${mostrarValor(campo, estado.guardado)}`
+                      ) : (
+                        campo.ayuda
+                      )}
+                    </small>
+                  </div>
+                );
+              })}
+            </fieldset>
+          ))}
+
+          {!soloLectura && (
+            <div className="config-acciones">
+              <button type="submit" className="config-boton config-boton--principal" disabled={!puedeGuardar}>
+                {guardando ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+              <button
+                type="button"
+                className="config-boton"
+                disabled={cambios.length === 0 && !hayErrores}
+                onClick={() => {
+                  setTextosEditados({});
+                  setErrorGuardar(null);
+                }}
+              >
+                Descartar cambios
+              </button>
+              {cambios.length > 0 && !hayErrores && (
+                <p className="config-mensaje">
+                  {cambios.length === 1 ? '1 cambio sin guardar' : `${cambios.length} cambios sin guardar`}
+                </p>
+              )}
+              {hayErrores && (
+                <p className="config-mensaje config-mensaje--error">Corrige los campos marcados para poder guardar.</p>
+              )}
+              {errorGuardar && (
+                <p className="config-mensaje config-mensaje--error" role="alert">
+                  {errorGuardar}
+                </p>
+              )}
+            </div>
+          )}
+        </form>
+      )}
+    </EstadoCarga>
   );
 }
 

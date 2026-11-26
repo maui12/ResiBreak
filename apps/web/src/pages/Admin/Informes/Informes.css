@@ -156,7 +156,15 @@
 }
 
 .informes-nota {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.informes-destacado {
+  margin: 0;
+  color: #86efac;
+  font-size: 1.6rem;
+  font-weight: 700;
 }
 
 /* ---------- Selector de periodos ---------- */
@@ -189,11 +197,10 @@
 
 .informes-opcion--activa,
 .informes-opcion--activa:hover {
-  border-color: var(--nt-celeste);
-  background: var(--nt-celeste-fondo);
-  color: var(--nt-celeste);
+  border-color: var(--ucn-orange);
+  background: var(--ucn-orange);
+  color: #fff;
   font-weight: 600;
-  box-shadow: 0 0 0 1px var(--nt-celeste);
 }
 
 .informes-opcion:focus-visible,
@@ -263,6 +270,8 @@
 
 .informes-campo input {
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   height: 2.4rem;
   padding: 0 0.5rem;
   border: 1px solid var(--nt-borde);
